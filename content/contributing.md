@@ -18,7 +18,7 @@ To open an issue navigate to the partitura github repository:
 
 
 
-#### Write your descirption
+#### Write your description
 
 ![](/home/manos/Desktop/JKU/codes/partitura_tutorial/static/writing_issue.png)
 
