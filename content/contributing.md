@@ -45,7 +45,7 @@ To open an issue navigate to the partitura github repository:
 A step by step guide :	
 
 1. To contribute is to open a relevant issue.
-2. Choose to *fork* or *clone* the repo.
+2. Choose to ***fork*** or *clone* the repo.
 3. *Checkout* or *Pull* the latest stable develop branch.
 4. *Checkout a new branch* from the develop with the name of your develop idea.
 5. When finished coding, open a pull request.
@@ -58,13 +58,24 @@ Follow section how to open an issue.
 
 
 
-## Fork or Clone the Repo
+## **Fork** or Clone the Repo
+
+If you don't have collabolator rights to the partitura repository then choose to fork partitura from 
+https://github.com/CPJKU/partitura
+
+
+If you have forked then use
+```shell
+git clone https://github.com/YourUsername/partitura.git
+cd partitura
+```
+
+If you have editor/collaborator rights to CPJKU partitura then just clone:
 
 ```shell
 git clone https://github.com/CPJKU/partitura.git
 cd partitura
 ```
-
 
 
 ### Get latest Develop Branch
