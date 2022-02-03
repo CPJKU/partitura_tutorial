@@ -6,7 +6,6 @@ import tarfile
 import io
 from urllib.request import urlopen
 import urllib
-import re
 
 from IPython.display import display
 import ipywidgets as widgets
@@ -109,7 +108,7 @@ def init_dataset():
         status.append_stdout("done\nData is in {}".format(DATASET_DIR))
 
     return DATASET_DIR
-    
+
 
 if __name__ == "__main__":
     init_dataset()
