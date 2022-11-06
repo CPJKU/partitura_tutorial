@@ -61,7 +61,11 @@ def generate_example_sequences(
     # Time stretching X! each element in sequence X is
     # repeated a random number of times
     # and then we add some noise to spice things up :)
-    n_reps = RNG.randint(minreps, maxreps, len(X))
+
+    if minreps == maxreps:
+        n_reps = np.ones(len(X), dtype=int) * minreps
+    else:
+        n_reps = RNG.randint(minreps, maxreps, len(X))
     y_idxs = [rp * [i] for i, rp in enumerate(n_reps)]
     y_idxs = np.array([el for reps in y_idxs for el in reps], dtype=int)
     # Add a bias, so that Y has a different "scaling" than X
@@ -323,10 +327,21 @@ def greedy_note_alignment(
     used_notes1 = list()
     used_notes2 = list()
 
+    coord_info1 = idx1
+    if idx1.shape[1] == 3:
+        # Assume that the first column contains the correct MIDI pitch
+        coord_info1 = np.column_stack((idx1, idx1[:, 0]))
+
+    coord_info2 = idx2
+
+    if idx2.shape[1] == 3:
+        # Assume that the first column contains the correct MIDI pitch
+        coord_info2 = np.column_stack((idx2, idx2[:, 0]))
+
     # loop over all notes in sequence 1
-    for note1, coord1 in zip(note_array1, idx1):
+    for note1, coord1 in zip(note_array1, coord_info1):
         note1_id = note1["id"]
-        pitch1, s1, e1 = coord1
+        pc1, s1, e1, pitch1 = coord1
 
         # find the coordinates of the note in the warping_path
 
@@ -340,9 +355,9 @@ def greedy_note_alignment(
 
         # loop over all notes in sequence 2 and pick the notes with same pitch
         # and position
-        for note2, coord2 in zip(note_array2, idx2):
+        for note2, coord2 in zip(note_array2, coord_info2):
             note2_id = note2["id"]
-            pitch2, s2, e2 = coord2
+            pc2, s2, e2, pitch2 = coord2
             if note2_id not in used_notes2:
                 if pitch2 == pitch1 and s2 <= max2 and e2 >= min2:
 
