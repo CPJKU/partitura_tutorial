@@ -269,6 +269,8 @@ def evaluate_alignment_notewise(
        The F score
     """
 
+    sanitize_alignment(prediction)
+    sanitize_alignment(ground_truth)
     pred_filtered = list(filter(lambda x: x["label"] in types, prediction))
     gt_filtered = list(filter(lambda x: x["label"] in types, ground_truth))
 
@@ -292,6 +294,20 @@ def evaluate_alignment_notewise(
         precision, recall, f_score = 1.0, 1.0, 1.0
 
     return precision, recall, f_score
+
+
+def sanitize_alignment(alignment: List[dict]) -> None:
+
+    for note in alignment:
+
+        score_id = note.get("score_id", None)
+
+        if score_id is not None:
+            note["score_id"] = str(score_id)
+        perf_id = note.get("performance_id", None)
+
+        if perf_id is not None:
+            note["performance_id"] = str(perf_id)
 
 
 def greedy_note_alignment(

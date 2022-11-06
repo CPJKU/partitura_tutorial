@@ -183,9 +183,9 @@ def fast_dynamic_time_warping(
     dtwd, warping_path = fastdtw(X, Y, dist=dist)
 
     # Make path a numpy array
-    warping_path = np.array(warping_path)
+    warping_path = np.array(warping_path, dtype=int)
 
     if return_distance:
         return warping_path, dtwd
 
-    return warping_path, dtwd
+    return warping_path
