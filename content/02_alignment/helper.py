@@ -297,7 +297,15 @@ def evaluate_alignment_notewise(
 
 
 def sanitize_alignment(alignment: List[dict]) -> None:
+    """
+    Ensure that note ids are strings in alignments.
+    These method changes alignments in-place.
 
+    Parameters
+    ----------
+    alignment : List[dict]
+        List of dictionaries containing an alignment.
+    """
     for note in alignment:
 
         score_id = note.get("score_id", None)
