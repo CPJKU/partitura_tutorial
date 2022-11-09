@@ -1,1 +1,3 @@
 content/
+/lightning_logs
+*.zip
