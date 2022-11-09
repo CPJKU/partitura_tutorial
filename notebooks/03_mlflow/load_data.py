@@ -65,7 +65,7 @@ def get_datasetdir():
 
 
 def init_dataset():
-    global DATASET_DIR, PIECES, PERFORMERS, SCORE_PERFORMANCE_PAIRS
+    global DATASET_DIR
 
     load_cfg()
 
