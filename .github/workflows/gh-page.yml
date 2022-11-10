@@ -10,7 +10,6 @@ jobs:
     runs-on: ubuntu-latest
 #    env:
 #      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
-
     steps:
       - uses: actions/checkout@v2.3.4
       - uses: actions/setup-python@v2.2.1
@@ -19,7 +18,6 @@ jobs:
 
       - name: Install dependencies
         run: |
-#          wget https://github.com/jgm/pandoc/releases/download/2.19.2/pandoc-2.19.2-linux-amd64.tar.gz
           apt-get install pandoc          
           python -m pip install -U sphinx
           python -m pip install -U pandoc
