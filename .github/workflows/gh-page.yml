@@ -22,6 +22,7 @@ jobs:
           python -m pip install -U sphinx
           python -m pip install -U pandoc
           python -m pip install -U nbsphinx 
+          python -m pip install -U insegel
           python -m pip install sphinx-rtd-theme
 
       - name: Copy notebooks to the docs path
