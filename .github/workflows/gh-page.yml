@@ -18,7 +18,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          apt-get install pandoc          
+          sudo apt-get install -y pandoc          
           python -m pip install -U sphinx
           python -m pip install -U pandoc
           python -m pip install -U nbsphinx 
