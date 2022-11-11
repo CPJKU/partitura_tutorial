@@ -14,19 +14,19 @@ To open an issue navigate to the partitura github repository:
 
 #### Click to **New Issue**
 
-![](../static/issue_page.png)
+![](static/issue_page.png)
 
 
 
 #### Write your description
 
-![](../static/writing_issue.png)
+![](static/writing_issue.png)
 
 
 
 #### Choose the appropriate label
 
-![](../static/issue_choosing_label.png)
+![](static/issue_choosing_label.png)
 
 
 
@@ -118,13 +118,13 @@ Write Unit tests to check the compatibility and assure the evolution of your fea
 
 [Partitura Pull Requests]: https://github.com/CPJKU/partitura/pulls	"Partitura Pull Requests"
 
-![](../static/pull_requests.png)
+![](static/pull_requests.png)
 
 
 
 ##### Set the base to develop and the compare to your branch
 
-![](../static/open_pull_request.png)
+![](static/open_pull_request.png)
 
 
 
@@ -135,7 +135,7 @@ When you create your PR then the partitura Unitests including the Unit Tests you
 If there is no conflict with the develop branch then you will see this on your screen :
 
 
-![](../static/unitest_pass.png)
+![](static/unitest_pass.png)
 
 
 
