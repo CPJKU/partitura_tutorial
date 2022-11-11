@@ -129,4 +129,10 @@ dmypy.json
 .pyre/
 
 .DS_Store
-*~
+
+# Repository directories
+content/
+parangonada_files/
+lightning_logs/
+*.zip
+
