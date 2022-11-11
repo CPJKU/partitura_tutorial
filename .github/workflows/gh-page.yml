@@ -2,7 +2,7 @@ name: docs_pages_workflow
 
 on:
   push:
-    branches: [ mlflow ]
+    branches: [ main ]
 
 jobs:
 
