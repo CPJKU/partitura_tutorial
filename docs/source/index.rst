@@ -24,6 +24,7 @@ The tutorial is divided into four parts:
    :hidden:
 
    notebooks/01_introduction/Partitura_tutorial.ipynb
+   notebooks/02_alignment/Symbolic_Music_Alignment.ipynb
    notebooks/03_mlflow/pitch_spelling.ipynb
-   notebooks/03_mlflow/Drum_Generation_Transformer.ipynb
+   notebooks/04_generation/Drum_Generation_Transformer.ipynb
 
