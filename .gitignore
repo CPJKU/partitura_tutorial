@@ -130,9 +130,9 @@ dmypy.json
 
 .DS_Store
 
-
 # Repository directories
 content/
 parangonada_files/
 lightning_logs/
 *.zip
+
