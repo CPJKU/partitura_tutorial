@@ -6,8 +6,8 @@
 Welcome to the Partitura Tutorial ISMIR 2022!
 ==============================================
 
-.. toctree::
-   :maxdepth: 1
+.. nbsphinx-toctree::
+   :maxdepth: 3
    :caption: Contents:
    :hidden:
 
