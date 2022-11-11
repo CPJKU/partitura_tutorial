@@ -10,7 +10,6 @@ Welcome to the Partitura Tutorial ISMIR 2022!
    :maxdepth: 1
    :caption: Contents:
    :hidden:
-   :glob:
 
    notebooks/01_introduction/Partitura_tutorial.ipynb
    notebooks/03_mlflow/pitch_spelling.ipynb
