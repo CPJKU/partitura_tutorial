@@ -12,12 +12,10 @@ import ipywidgets as widgets
 import appdirs
 
 TIMEOUT = 2
-REPO_NAME = "asap-dataset"
-DATASET_BRANCH = "note_alignments"
-OWNER = "CPJKU"
-DATASET_URL = "https://api.github.com/repos/{}/{}/tarball/{}".format(
-    OWNER, REPO_NAME, DATASET_BRANCH
-)
+REPO_NAME = "vienna4x22_rematched"
+DATASET_BRANCH = "master"
+OWNER = "OFAI"
+
 
 
 TMP_DIR = appdirs.user_cache_dir("partitura_tutorial")
@@ -64,8 +62,25 @@ def get_datasetdir():
         return CFG.get("last_dataset_dir", None)
 
 
-def init_dataset():
-    global DATASET_DIR
+def init_dataset(name="Vienna4x22"):
+    if name == "Vienna4x22":
+        global DATASET_DIR, PIECES, PERFORMERS, SCORE_PERFORMANCE_PAIRS
+        REPO_NAME = "vienna4x22_rematched"
+        DATASET_BRANCH = "master"
+        OWNER = "OFAI"
+        DATASET_URL = "https://api.github.com/repos/{}/{}/tarball/{}".format(
+            OWNER, REPO_NAME, DATASET_BRANCH
+        )
+    elif name == "ASAP":
+        global DATASET_DIR
+        REPO_NAME = "asap-dataset"
+        DATASET_BRANCH = "note_alignments"
+        OWNER = "CPJKU"
+        DATASET_URL = "https://api.github.com/repos/{}/{}/tarball/{}".format(
+            OWNER, REPO_NAME, DATASET_BRANCH
+        )
+    else:
+        raise ValueError("Dataset {} not available".format(name))
 
     load_cfg()
 
@@ -80,11 +95,11 @@ def init_dataset():
 
     elif os.path.exists(DATASET_DIR):
 
-        status.append_stdout("ASAP Dataset already downloaded.\n")
+        status.append_stdout("{} already downloaded.\n".format(REPO_NAME))
         status.append_stdout("Data is in {}".format(DATASET_DIR))
 
     else:
-        status.append_stdout("Downloading the ASAP Dataset...")
+        status.append_stdout("Downloading {} Dataset...".format(name))
         try:
             try:
                 urldata = urlopen(DATASET_URL).read()
