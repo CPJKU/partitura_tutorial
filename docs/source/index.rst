@@ -3,8 +3,14 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
+.. image:: ./assets/partitura_logo_black.png
+   :width: 600
+   :align: center
+
 Welcome to the Partitura Tutorial ISMIR 2022!
 ==============================================
+
+
 
 This tutorial is an ensemble of notebooks that will guide you
 through the basics of the Partitura library.
@@ -23,6 +29,7 @@ The tutorial is divided into four parts:
    :numbered:
    :hidden:
 
+   ./index
    notebooks/01_introduction/Partitura_tutorial.ipynb
    notebooks/02_alignment/Symbolic_Music_Alignment.ipynb
    notebooks/03_mlflow/pitch_spelling.ipynb
