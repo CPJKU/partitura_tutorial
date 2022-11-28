@@ -39,7 +39,7 @@ def save_cfg():
         json.dump(CFG, f)
 
 
-def get_datasetdir():
+def get_datasetdir(OWNER, REPO_NAME, DATASET_BRANCH):
     """Get the SHA of the latest commit and return the corresponding
     datast directory path.
 
@@ -88,7 +88,7 @@ def init_dataset(name="Vienna4x22"):
     display(status)
     status.clear_output()
 
-    DATASET_DIR = get_datasetdir()
+    DATASET_DIR = get_datasetdir(OWNER, REPO_NAME, DATASET_BRANCH)
 
     if DATASET_DIR is None:
         status.append_stdout("No internet connection?\n")
