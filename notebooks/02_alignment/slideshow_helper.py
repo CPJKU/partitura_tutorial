@@ -59,9 +59,9 @@ def show_slideshow_or_gif(
     pdf_path: PathLike,
     gif_path: PathLike,
 ) -> None:
-
+    from urllib.request import urlopen
+    gif_data = urlopen(gif_path)
     if interactive:
         slideshow_from_pdf(pdf_path)
-
     else:
-        display(Image(data=open(gif_path, "rb").read(), format="png"))
+        display(Image(data=gif_data.read(), format="png"))
