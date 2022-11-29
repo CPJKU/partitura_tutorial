@@ -55,11 +55,10 @@ def slideshow_from_dir(image_dir: PathLike) -> None:
 
 
 def show_slideshow_or_gif(
-    interactive: bool,
-    pdf_path: PathLike,
-    gif_path: PathLike,
-) -> None:
+    interactive: bool) -> None:
     from urllib.request import urlopen
+    pdf_path = "https://raw.githubusercontent.com/CPJKU/partitura_tutorial/main/notebooks/02_alignment/figures/dtw_example.pdf",
+    gif_path = "https://raw.githubusercontent.com/CPJKU/partitura_tutorial/main/notebooks/02_alignment/figures/dtw_example.gif"
     gif_data = urlopen(gif_path)
     if interactive:
         slideshow_from_pdf(pdf_path)
