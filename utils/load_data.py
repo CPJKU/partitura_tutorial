@@ -12,9 +12,9 @@ import ipywidgets as widgets
 import appdirs
 
 TIMEOUT = 2
-REPO_NAME = "vienna4x22_rematched"
+REPO_NAME = "vienna4x22"
 DATASET_BRANCH = "master"
-OWNER = "OFAI"
+OWNER = "CPJKU"
 
 
 
