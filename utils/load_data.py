@@ -17,7 +17,6 @@ DATASET_BRANCH = "master"
 OWNER = "CPJKU"
 
 
-
 TMP_DIR = appdirs.user_cache_dir("partitura_tutorial")
 CFG_FILE = os.path.join(TMP_DIR, "cache.json")
 CFG = None
@@ -65,9 +64,9 @@ def get_datasetdir(OWNER, REPO_NAME, DATASET_BRANCH):
 def init_dataset(name="Vienna4x22"):
     if name == "Vienna4x22":
         global DATASET_DIR, PIECES, PERFORMERS, SCORE_PERFORMANCE_PAIRS
-        REPO_NAME = "vienna4x22_rematched"
+        REPO_NAME = "vienna4x22"
         DATASET_BRANCH = "master"
-        OWNER = "OFAI"
+        OWNER = "CPJKU"
         DATASET_URL = "https://api.github.com/repos/{}/{}/tarball/{}".format(
             OWNER, REPO_NAME, DATASET_BRANCH
         )
