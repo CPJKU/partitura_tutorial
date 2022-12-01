@@ -8,9 +8,31 @@ from IPython.display import Image, display
 
 from partitura.utils.misc import PathLike
 
-import pdf2image
-
 from PIL.Image import Image as PILImage
+
+from urllib.request import urlopen
+
+try:
+    import google.colab
+
+    IN_COLAB = True
+except:
+    IN_COLAB = False
+
+
+if IN_COLAB:
+    PNG_DTW_EXAMPLE = [
+        urlopen(
+            "https://raw.githubusercontent.com/CPJKU/partitura_tutorial/"
+            "main/notebooks/02_alignment/figures/dtw_example_png/"
+            "dtw_example_{i:02d}.png"
+        )
+        for i in range(30)
+    ]
+
+else:
+    PNG_DTW_EXAMPLE = glob.glob(os.path.join("figures", "dtw_example_png", "*.png"))
+    PNG_DTW_EXAMPLE.sort()
 
 
 def slideshow(image_list: Iterable[Union[PathLike, PILImage]]) -> None:
@@ -43,24 +65,30 @@ def slideshow(image_list: Iterable[Union[PathLike, PILImage]]) -> None:
     )
 
 
-def slideshow_from_pdf(pdf_path: PathLike) -> None:
-    images = pdf2image.convert_from_path(pdf_path)
-    slideshow(images)
+# def slideshow_from_pdf(pdf_path: PathLike) -> None:
+#     images = pdf2image.convert_from_path(pdf_path)
+#     slideshow(images)
 
 
-def slideshow_from_dir(image_dir: PathLike) -> None:
+# def show_slideshow_or_gif(interactive: bool) -> None:
+#     from urllib.request import urlopen
 
-    if not os.path.isdir(image_dir):
-        raise ValueError("`image_dir` must be a directory")
+#     pdf_path = (
+#         "https://raw.githubusercontent.com/CPJKU/partitura_tutorial/main/notebooks/02_alignment/figures/dtw_example.pdf",
+#     )
+#     gif_path = "https://raw.githubusercontent.com/CPJKU/partitura_tutorial/main/notebooks/02_alignment/figures/dtw_example.gif"
+#     gif_data = urlopen(gif_path)
+#     if interactive:
+#         slideshow_from_pdf(pdf_path)
+#     else:
+#         display(Image(data=gif_data.read(), format="png"))
 
 
-def show_slideshow_or_gif(
-    interactive: bool) -> None:
-    from urllib.request import urlopen
-    pdf_path = "https://raw.githubusercontent.com/CPJKU/partitura_tutorial/main/notebooks/02_alignment/figures/dtw_example.pdf",
+def dtw_example(interactive: bool) -> None:
+
     gif_path = "https://raw.githubusercontent.com/CPJKU/partitura_tutorial/main/notebooks/02_alignment/figures/dtw_example.gif"
     gif_data = urlopen(gif_path)
     if interactive:
-        slideshow_from_pdf(pdf_path)
+        slideshow(PNG_DTW_EXAMPLE)
     else:
         display(Image(data=gif_data.read(), format="png"))
