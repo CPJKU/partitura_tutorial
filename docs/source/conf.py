@@ -57,7 +57,9 @@ html_theme = 'insegel'
 html_static_path = ['_static']
 
 html_logo = 'assets/partitura_logo_black.png'
-html_favicon = 'assets/fav_partitura.ico'
+html_favicon = './assets/fav_partitura.ico'
+html_show_sphinx = False
+
 
 html_theme_options = {
     'analytics_id': 'G-344421322',  #  Provided by Google in your dashboard
