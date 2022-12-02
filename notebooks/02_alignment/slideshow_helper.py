@@ -1,6 +1,7 @@
 import ipywidgets as wg
 import os
 import glob
+import io
 
 from typing import Iterable, Union
 
@@ -9,6 +10,7 @@ from IPython.display import Image, display
 from partitura.utils.misc import PathLike
 
 from PIL.Image import Image as PILImage
+import zipfile
 
 from urllib.request import urlopen
 
@@ -16,31 +18,26 @@ try:
     import google.colab
 
     IN_COLAB = True
-except:
+except ImportError:
     IN_COLAB = False
 
 
-# import zipfile
-
-# fantasy_zip = zipfile.ZipFile('E:\\Shared\\DOWNLOADED\\c.zip')
-# fantasy_zip.extractall('E:\\Shared\\DOWNLOADED\\extract)
-
-
-
 if IN_COLAB:
-    PNG_DTW_EXAMPLE = [
-        urlopen(
-            "https://raw.githubusercontent.com/CPJKU/partitura_tutorial/"
-            "main/notebooks/02_alignment/figures/dtw_example_png/"
-            f"dtw_example_{i:02d}.png"
-        )
-        for i in range(30)
-    ]
+
+    urldata = urlopen(
+        "https://raw.githubusercontent.com/CPJKU/partitura_tutorial/"
+        "main/notebooks/02_alignment/figures/dtw_example_png.zip"
+    )
+
+    archive = zipfile.ZipFile(io.BytesIO(urldata), "r")
 
 else:
-     
-    PNG_DTW_EXAMPLE = glob.glob(os.path.join("figures", "dtw_example_png", "*.png"))
-    PNG_DTW_EXAMPLE.sort()
+
+    archive = zipfile.ZipFile(os.path.join("figures", "dtw_example_png.zip"), "r")
+
+PNG_DTW_EXAMPLE = [
+    io.BytesIO(archive.read(f"dtw_example_{i:02d}.png")) for i in range(30)
+]
 
 
 def slideshow(image_list: Iterable[Union[PathLike, PILImage]]) -> None:
@@ -61,7 +58,7 @@ def slideshow(image_list: Iterable[Union[PathLike, PILImage]]) -> None:
     else:
 
         def show_image(slider_val: int) -> None:
-            display(image_list[slider_val])
+            return Image(image_list[slider_val].getvalue())
 
     wg.interact(
         show_image,
