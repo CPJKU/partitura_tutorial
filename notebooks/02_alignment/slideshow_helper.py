@@ -20,17 +20,25 @@ except:
     IN_COLAB = False
 
 
+# import zipfile
+
+# fantasy_zip = zipfile.ZipFile('E:\\Shared\\DOWNLOADED\\c.zip')
+# fantasy_zip.extractall('E:\\Shared\\DOWNLOADED\\extract)
+
+
+
 if IN_COLAB:
     PNG_DTW_EXAMPLE = [
         urlopen(
             "https://raw.githubusercontent.com/CPJKU/partitura_tutorial/"
             "main/notebooks/02_alignment/figures/dtw_example_png/"
-            "dtw_example_{i:02d}.png"
+            f"dtw_example_{i:02d}.png"
         )
         for i in range(30)
     ]
 
 else:
+     
     PNG_DTW_EXAMPLE = glob.glob(os.path.join("figures", "dtw_example_png", "*.png"))
     PNG_DTW_EXAMPLE.sort()
 
@@ -50,7 +58,7 @@ def slideshow(image_list: Iterable[Union[PathLike, PILImage]]) -> None:
         def show_image(slider_val: int) -> Image:
             return Image(image_list[slider_val])
 
-    elif isinstance(image_list[0], PILImage):
+    else:
 
         def show_image(slider_val: int) -> None:
             display(image_list[slider_val])
