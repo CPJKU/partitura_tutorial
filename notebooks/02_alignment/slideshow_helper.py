@@ -11,7 +11,7 @@ from partitura.utils.misc import PathLike
 
 from PIL.Image import Image as PILImage
 import zipfile
-
+import requests
 from urllib.request import urlopen
 
 try:
@@ -23,13 +23,12 @@ except ImportError:
 
 
 if IN_COLAB:
-
-    urldata = urlopen(
+    r = requests.get(
         "https://raw.githubusercontent.com/CPJKU/partitura_tutorial/"
-        "main/notebooks/02_alignment/figures/dtw_example_png.zip"
+        "main/notebooks/02_alignment/figures/dtw_example_png.zip",
+        stream=True,
     )
-
-    archive = zipfile.ZipFile(io.BytesIO(urldata), "r")
+    archive = zipfile.ZipFile(io.BytesIO(r.content), "r")
 
 else:
 
