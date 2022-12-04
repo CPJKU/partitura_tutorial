@@ -592,3 +592,6 @@ def save_parangonada_csv(
 
         # Zip all files
         make_archive(outdir, "zip", outdir)
+
+
+print('')
