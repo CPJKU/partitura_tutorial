@@ -33,7 +33,7 @@ This work receives funding from the European Research Council (ERC) under the Eu
 About the Authors
 ==============================================
 
-`Carlos Cancino-Chacón<http://www.carloscancinochacon.com/>`_ is an Assistant Professor at the
+`Carlos Cancino-Chacón <http://www.carloscancinochacon.com/>`_ is an Assistant Professor at the
 Institute of Computational Perception,
 Johannes Kepler University, Linz, Austria,
 and a Guest Researcher at the RITMO Centre for
@@ -49,11 +49,11 @@ a degree in Physics from the National Autonomous University
 of Mexico, and a degree in Piano Performance from the National
 Conservatory of Music of Mexico.
 
-`Francesco Foscarin<https://www.jku.at/en/institute-of-computational-perception/about-us/people/franceso-foscarin/>`_ is a postdoctoral researcher at the Institute of Computational Perception, Johannes Kepler University, Linz, Austria. He completed his Ph.D. at CNAM Paris on music transcription, with a focus on the production of musical scores, and holds classical and jazz piano degrees from the Conservatory of Vicenza. His research interests include post-hoc explainability techniques for DL models, grammar-based parsing of hierarchical chord structures, piano comping generation for jazz music, and voice separation in symbolic music.
+`Francesco Foscarin <https://www.jku.at/en/institute-of-computational-perception/about-us/people/franceso-foscarin/>`_ is a postdoctoral researcher at the Institute of Computational Perception, Johannes Kepler University, Linz, Austria. He completed his Ph.D. at CNAM Paris on music transcription, with a focus on the production of musical scores, and holds classical and jazz piano degrees from the Conservatory of Vicenza. His research interests include post-hoc explainability techniques for DL models, grammar-based parsing of hierarchical chord structures, piano comping generation for jazz music, and voice separation in symbolic music.
 
-`Emmanouil Karystinaios<https://emmanouil-karystinaios.github.io/>`_ is a Ph.D. student at the Institute of Computational Perception, Johannes Kepler University, Linz, Austria. His research topics encompass graph neural networks, music structure segmentation, and automated music analysis. He holds an M.Sc. degree in Mathematical Logic from Paris Diderot University, an M.A. in Composition from Paris Vincennes University, and an integrated M.A. in Musicology from the Aristotle University of Thessaloniki.
+`Emmanouil Karystinaios <https://emmanouil-karystinaios.github.io/>`_ is a Ph.D. student at the Institute of Computational Perception, Johannes Kepler University, Linz, Austria. His research topics encompass graph neural networks, music structure segmentation, and automated music analysis. He holds an M.Sc. degree in Mathematical Logic from Paris Diderot University, an M.A. in Composition from Paris Vincennes University, and an integrated M.A. in Musicology from the Aristotle University of Thessaloniki.
 
-`Silvan David Peter<https://www.jku.at/en/institute-of-computational-perception/about-us/people/silvan-david-peter/>`_ is a University Assistant at the Institute of Computational Perception, Johannes Kepler University, Linz, Austria. His research interests are the evaluation of and interaction with computational models of musical skills. He holds an M.Sc. degree in Mathematics from the Humboldt University of Berlin.
+`Silvan David Peter <https://www.jku.at/en/institute-of-computational-perception/about-us/people/silvan-david-peter/>`_ is a University Assistant at the Institute of Computational Perception, Johannes Kepler University, Linz, Austria. His research interests are the evaluation of and interaction with computational models of musical skills. He holds an M.Sc. degree in Mathematics from the Humboldt University of Berlin.
 
 
 To reference this tutorial
