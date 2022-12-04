@@ -592,11 +592,3 @@ def save_parangonada_csv(
 
         # Zip all files
         make_archive(outdir, "zip", outdir)
-    else:
-        return (
-            perf_note_array,
-            score_note_array,
-            alignarray,
-            zalignarray,
-            featurearray,
-        )
