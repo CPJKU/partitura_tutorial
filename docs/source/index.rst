@@ -58,6 +58,7 @@ Conservatory of Music of Mexico.
 
 To reference this tutorial
 ==========================
+
 .. code-block:: BibTeX
 
    @book{partitura_tutorial:book,
