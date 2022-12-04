@@ -35,7 +35,7 @@ else:
     archive = zipfile.ZipFile(os.path.join("figures", "dtw_example_png.zip"), "r")
 
 PNG_DTW_EXAMPLE = [
-    io.BytesIO(archive.read(f"dtw_example_{i:02d}.png")) for i in range(30)
+    Image(io.BytesIO(archive.read(f"dtw_example_{i:02d}.png")).getvalue()) for i in range(30)
 ]
 
 
@@ -57,7 +57,7 @@ def slideshow(image_list: Iterable[Union[PathLike, PILImage]]) -> None:
     else:
 
         def show_image(slider_val: int) -> None:
-            return Image(image_list[slider_val].getvalue())
+            return image_list[slider_val]
 
     wg.interact(
         show_image,

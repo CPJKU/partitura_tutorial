@@ -4,15 +4,24 @@
 Helper methods for plotting and visualizing alignments
 """
 import numpy as np
+import os
+
+from shutil import make_archive
 
 from matplotlib import lines, pyplot as plt
 from sklearn.datasets import make_blobs
 
 import partitura as pt
 
+from partitura.score import ScoreLike
+from partitura.performance import PerformanceLike
+from partitura.utils.misc import PathLike
+
+from partitura.io.exportparangonada import alignment_dicts_to_array
+
 from scipy.sparse import csc_matrix
 
-from typing import Union, Optional, List
+from typing import Union, Optional, List, Tuple
 
 # Define random state for reproducibility
 RNG = np.random.RandomState(1984)
@@ -435,3 +444,159 @@ def dummy_linear_alignment(X: np.ndarray, Y: np.ndarray) -> np.ndarray:
     ).astype(int)
 
     return linear_alignment
+
+
+def save_parangonada_csv(
+    alignment: List[dict],
+    performance_data: Union[PerformanceLike, np.ndarray],
+    score_data: Union[ScoreLike, np.ndarray],
+    outdir: Optional[PathLike] = None,
+    zalign: Optional[List[dict]] = None,
+    feature: Optional[List[dict]] = None,
+) -> Optional[Tuple[np.ndarray]]:
+    """
+    Save an alignment for visualization with parangonda.
+
+    Parameters
+    ----------
+    alignment : list
+        A list of note alignment dictionaries.
+    performance_data : Performance, PerformedPart, structured ndarray
+        The performance information
+    score_data : ScoreLike
+        The musical score. A :class:`partitura.score.Score` object,
+        a :class:`partitura.score.Part`, a :class:`partitura.score.PartGroup` or
+        a list of these.
+    outdir : PathLike
+        A directory to save the files into.
+    ppart : PerformedPart, structured ndarray
+        A PerformedPart or its note_array.
+    zalign : list, optional
+        A second list of note alignment dictionaries.
+    feature : list, optional
+        A list of expressive feature dictionaries.
+
+    Returns
+    -------
+    perf_note_array : np.ndarray
+        The performance note array. Only returned if `outdir` is None.
+    score_note_array: np.ndarray
+        The note array from the score. Only returned if `outdir` is None.
+    alignarray: np.ndarray
+    zalignarray: np.ndarray
+    featurearray: np.ndarray
+    """
+
+    score_note_array = pt.utils.ensure_notearray(score_data)
+
+    perf_note_array = pt.utils.ensure_notearray(performance_data)
+
+    ffields = [
+        ("velocity", "<f4"),
+        ("timing", "<f4"),
+        ("articulation", "<f4"),
+        ("id", "U256"),
+    ]
+
+    farray = []
+    notes = list(score_note_array["id"])
+    if feature is not None:
+        # veloctiy, timing, articulation, note
+        for no, i in enumerate(list(feature["id"])):
+            farray.append(
+                (
+                    feature["velocity"][no],
+                    feature["timing"][no],
+                    feature["articulation"][no],
+                    i,
+                )
+            )
+    else:
+        for no, i in enumerate(notes):
+            farray.append((0, 0, 0, i))
+
+    featurearray = np.array(farray, dtype=ffields)
+    alignarray = alignment_dicts_to_array(alignment)
+
+    if zalign is not None:
+        zalignarray = alignment_dicts_to_array(zalign)
+    else:  # if no zalign is available, save the same alignment twice
+        zalignarray = alignment_dicts_to_array(alignment)
+
+    if outdir is not None:
+        np.savetxt(
+            os.path.join(outdir, "ppart.csv"),
+            # outdir + os.path.sep + "perf_note_array.csv",
+            perf_note_array[
+                [
+                    "onset_sec",
+                    "duration_sec",
+                    "pitch",
+                    "velocity",
+                    "track",
+                    "channel",
+                    "id",
+                ]
+            ],
+            fmt="%.20s",
+            delimiter=",",
+            header=",".join(
+                [
+                    "onset_sec",
+                    "duration_sec",
+                    "pitch",
+                    "velocity",
+                    "track",
+                    "channel",
+                    "id",
+                ]
+            ),
+            comments="",
+        )
+        np.savetxt(
+            os.path.join(outdir, "part.csv"),
+            # outdir + os.path.sep + "score_note_array.csv",
+            score_note_array,
+            fmt="%.20s",
+            delimiter=",",
+            header=",".join(score_note_array.dtype.names),
+            comments="",
+        )
+        np.savetxt(
+            os.path.join(outdir, "align.csv"),
+            # outdir + os.path.sep + "align.csv",
+            alignarray,
+            fmt="%.20s",
+            delimiter=",",
+            header=",".join(alignarray.dtype.names),
+            comments="",
+        )
+        np.savetxt(
+            os.path.join(outdir, "zalign.csv"),
+            # outdir + os.path.sep + "zalign.csv",
+            zalignarray,
+            fmt="%.20s",
+            delimiter=",",
+            header=",".join(zalignarray.dtype.names),
+            comments="",
+        )
+        np.savetxt(
+            os.path.join(outdir, "feature.csv"),
+            # outdir + os.path.sep + "feature.csv",
+            featurearray,
+            fmt="%.20s",
+            delimiter=",",
+            header=",".join(featurearray.dtype.names),
+            comments="",
+        )
+
+        # Zip all files
+        make_archive(outdir, "zip", outdir)
+    else:
+        return (
+            perf_note_array,
+            score_note_array,
+            alignarray,
+            zalignarray,
+            featurearray,
+        )
