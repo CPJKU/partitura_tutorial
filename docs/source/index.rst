@@ -58,15 +58,15 @@ Conservatory of Music of Mexico.
 
 To reference this tutorial
 ==========================
-
-@book{partitura_tutorial:book,
-	Author = {Carlos Cancino-Chac{\'o}n and Francesco Foscarin and Emmanouil Karystinaios and Silvan David Peter},
-	Month = Dec.,
-	Publisher = {https://cpjku.github.io/partitura_tutorial},
-	Title = {An Introduction to Symbolic Music Processing in Python with Partitura},
-	Year = 2022,
-	Url = {https://cpjku.github.io/partitura_tutorial}
-}
+.. code-block:: BibTeX
+   @book{partitura_tutorial:book,
+       Author = {Carlos Cancino-Chac{\'o}n and Francesco Foscarin and Emmanouil Karystinaios and Silvan David Peter},
+       Month = Dec.,
+       Publisher = {https://cpjku.github.io/partitura_tutorial},
+       Title = {An Introduction to Symbolic Music Processing in Python with Partitura},
+       Year = 2022,
+       Url = {https://cpjku.github.io/partitura_tutorial}
+   }
 
 
 .. toctree::
