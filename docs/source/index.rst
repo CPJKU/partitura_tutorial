@@ -59,6 +59,7 @@ Conservatory of Music of Mexico.
 To reference this tutorial
 ==========================
 .. code-block:: BibTeX
+
    @book{partitura_tutorial:book,
        Author = {Carlos Cancino-Chac{\'o}n and Francesco Foscarin and Emmanouil Karystinaios and Silvan David Peter},
        Month = Dec.,
