@@ -73,7 +73,7 @@ def init_dataset(name="Vienna4x22"):
     elif name == "ASAP":
         global DATASET_DIR
         REPO_NAME = "asap-dataset"
-        DATASET_BRANCH = "note_alignments"
+        DATASET_BRANCH = "main"
         OWNER = "CPJKU"
         DATASET_URL = "https://api.github.com/repos/{}/{}/tarball/{}".format(
             OWNER, REPO_NAME, DATASET_BRANCH

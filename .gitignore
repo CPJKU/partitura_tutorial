@@ -136,3 +136,4 @@ parangonada_files/
 lightning_logs/
 *.zip
 
+notebooks/04_generation/*.mid
