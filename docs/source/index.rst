@@ -74,7 +74,6 @@ To reference this tutorial
 .. toctree::
    :glob:
    :titlesonly:
-   :numbered:
    :hidden:
 
    ./index
