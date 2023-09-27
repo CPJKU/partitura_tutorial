@@ -4,16 +4,15 @@ Welcome to a quick introduction to symbolic music processing with partitura!
 
 This repo was originally developed for a tutorial session at ISMIR 22 and is now maintained as hands-on documentation for the [partitura library](https://github.com/CPJKU/partitura).
 Partitura is a library for symbolic music processing, that is, it reads, writes, and manipulates musical scores in a variety of formats and MIDI files and aims at:
-- file I/O for all things symbolic music; scores, performances, and alignments of the two.
+- file I/O for all things symbolic music: scores, performances, and alignments of the two.
 - feature extraction: creating note arrays, piano rolls, and custom features.
-- minimal reference implementations of automatic music analysis tools.
 
 ### What's in the tutorials?
 
 In the directory `notebooks` there are four tutorials:
 - 01_introduction: how to read and write scores and performances in partitura, how to manipulate musical material, and how to extract features like note arrays and piano rolls.
 - 02_alignment: how to read, process, and create symbolic (note-to-note) music alignments with partitura and Daynamic Time Warping (fastdtw, Vienna4x22 dataset)
-- 03_mlflow: automatic pitch spelling as an example of a machine learning pipeline for automatic music analysis (pytorch, lightning, LSTM, ASAP dataset)
+- 03_mlflow: automatic pitch spelling as an example of a machine learning pipeline for automatic music analysis (pytorch, lightning, LSTM, (n)ASAP dataset)
 - 04_generation: a small drum beat generator as an example of a machine learning pipeline for automatic music generation (pytorch, Transformer Encoder, Groove Midi Dataset)
 
 ### How to use the tutorials?
