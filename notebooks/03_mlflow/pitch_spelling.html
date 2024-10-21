@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#2D2D2D" />
+  
+  <title>Partitura Tutorial :: Pitch Spelling with Partitura</title>
+  
+
+  <link rel="icon" type="image/png" sizes="32x32" href="../../_static/img/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="../../_static/img/favicon-16x16.png">
+  <link rel="index" title="Index" href="../../genindex.html"/>
+
+  <link rel="stylesheet" href="../../_static/css/insegel.css"/>
+  <link rel="stylesheet" href="../../_static/css/custom.css"/>
+
+  <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+      <script type="text/javascript" src="../../_static/documentation_options.js"></script>
+      <script type="text/javascript" src="../../_static/doctools.js"></script>
+      <script type="text/javascript" src="../../_static/sphinx_highlight.js"></script>
+      <script type="text/javascript" src="../../https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script type="text/javascript" src="../../"></script>
+      <script type="text/javascript" src="../../https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  
+
+  <script src="https://email.tl.fortawesome.com/c/eJxNjUEOgyAQAF8jR7Kw6wIHDh7sP1Cw2mgxgmn6-3JsMqc5zEQfE8dkxOY1KKMUOI3ACFKRJpSW2AAp7ontYIaxI6i7XPJVwyeVfCQ550Os3jLrGSNOLgbdAy6s0PBk2TFNjEbsfq31LB0OnX407pJa5v2faRadwSW63mn5KuLyR9j2tgx3zecanl-55R_-jjPs"></script> 
+</head>
+
+<body>
+  <div id="insegel-container">
+    <header>
+      <div id="logo-container">
+          
+          <h1>Partitura Tutorial</h1>
+          
+      </div>
+      <div id="project-container">
+        
+        <h1>Documentation</h1>
+        
+      </div>
+    </header>
+
+    <div id="content-container">
+
+      <div id="main-content-container">
+        <div id="main-content" role="main">
+          
+  <p><a class="reference external" href="https://colab.research.google.com/github/CPJKU/partitura_tutorial/blob/main/notebooks/03_mlflow/pitch_spelling.ipynb"><img alt="Open in Colab" src="%22https://colab.research.google.com/assets/colab-badge.svg%22" /></a></p>
+<section id="Pitch-Spelling-with-Partitura">
+<h1>Pitch Spelling with Partitura<a class="headerlink" href="#Pitch-Spelling-with-Partitura" title="Link to this heading">¶</a></h1>
+<p>Have you always been bad at spelling bee, do you find that spelling notes makes this even worse. Your time of struggling is over…. Today we going to teach a Model to learn how to <em>pitch</em> spell for you.</p>
+<section id="Definition">
+<h2>Definition<a class="headerlink" href="#Definition" title="Link to this heading">¶</a></h2>
+<p>Spelling a pitch relates to the system of naming notes by letters (A-G) and sharp(#) and flat (♭) signs - and sometimes double sharp and flat signs, resulting in names or 'spellings' like 'A♭', 'D#', 'F♭♭'.</p>
+<p>Translating between frequencies in Hz and such names is non-trivial. You need to consider :</p>
+<ul class="simple">
+<li><p>The 'concert pitch' you are taking as a reference</p></li>
+<li><p>The temperament in which the piece is played</p></li>
+<li><p>The overall key that the music would be notated in</p></li>
+<li><p>Use of the correct enharmonic equivalents for accidentals (Using the correct enharmonic equivalent, Purpose of double-sharps and double-flats?)</p></li>
+</ul>
+<p>If translating between, say, MIDI note numbers and 'spelled' names, the first two steps can be skipped.</p>
+<p>Spelled pitch names often have an octave number appended for disambiguation - e.g. 'A♭3', 'D#5'.</p>
+</section>
+<section id="Some-Concrete-Examples">
+<h2>Some Concrete Examples<a class="headerlink" href="#Some-Concrete-Examples" title="Link to this heading">¶</a></h2>
+<p>Different pitch spellings of the same content:</p>
+<p><img alt="image0" src="https://raw.githubusercontent.com/CPJKU/partitura_tutorial/main/static/chord_spelling.png" /></p>
+<p>How to correctly spell a note may depend on the harmonic progression for example different spelling is appropriate for an <em>Augmented 6th</em> chord vs a borrowed dominant chord progression.</p>
+<p><img alt="image1" src="https://raw.githubusercontent.com/CPJKU/partitura_tutorial/main/static/augmented_6th_spelling.png" /></p>
+<p>If music theory is not your cup of tea, do not worry. We will view <em>Pitch Spelling</em> as a task from a more engineering perpective.</p>
+</section>
+<section id="Some-Spelling-algorithms">
+<h2>Some Spelling algorithms<a class="headerlink" href="#Some-Spelling-algorithms" title="Link to this heading">¶</a></h2>
+<p>Partitura contains an implementation for a standard algorithm for Pitch Spelling. The algorithm in question is called ps13 created by Meredith and al.:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>The ps13 pitch spelling algorithm, D Meredith - Journal of New Music Research, 2006
+</pre></div>
+</div>
+<p>Some notable algorithms and current SOTA is PKSpell.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>PKSpell: Data-driven pitch spelling and key signature estimation
+F Foscarin, N Audebert, R Fournier-S&#39;Niehotta, 2021
+</pre></div>
+</div>
+</section>
+<section id="Let's-Get-Started">
+<h2>Let’s Get Started<a class="headerlink" href="#Let's-Get-Started" title="Link to this heading">¶</a></h2>
+<p>In this tutorial we will use the following packages: - <code class="docutils literal notranslate"><span class="pre">partitura</span></code> The basic I/O for scores, performances and alignments crucial for pitch spelling estimation and evaluation. - Pytorch, i.e. <code class="docutils literal notranslate"><span class="pre">torch</span></code> Library for ML more on <a class="reference external" href="https://pytorch.org/">https://pytorch.org/</a> - <code class="docutils literal notranslate"><span class="pre">pytorch_lightning</span></code> Wrappers for Pytorch for better visualization and encapsulation more on <a class="reference external" href="https://www.pytorchlightning.ai/">https://www.pytorchlightning.ai/</a> - <code class="docutils literal notranslate"><span class="pre">pandas</span></code> for reading <code class="docutils literal notranslate"><span class="pre">.tsv</span></code> files</p>
+<p>Let’s start by downloading ASAP a dataset containing note alignments of symbolic performances to their respective scores perfect for a Pitch-Spelling evaluation framework.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>try:
+    import google.colab
+    IN_COLAB = True
+except:
+    IN_COLAB = False
+
+if IN_COLAB:
+    # Issues on Colab with newer versions of MIDO
+    # this install should be removed after the following
+    # pull request is accepted in MIDO
+    # https://github.com/mido/mido/pull/584
+    ! pip install mido==1.2.10
+    !pip install git+https://github.com/cpjku/partitura.git@develop
+    !pip install pytorch_lightning
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>import partitura as pt
+import torch
+import torch.nn as nn
+from torch.nn import functional as F
+import numpy as np
+import os
+import tqdm
+import pandas as pd
+import pytorch_lightning as pl
+from torch.utils.data import DataLoader, Dataset
+import warnings
+warnings.filterwarnings(&#39;ignore&#39;)
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>if IN_COLAB:
+    if not os.path.exists(&quot;./asap-dataset&quot;):
+            !git clone --single-branch https://github.com/CPJKU/asap-dataset.git
+    DATASET_DIR = os.path.normpath(&quot;./asap-dataset&quot;)
+else:
+    import sys, os
+    sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.getcwd())), &quot;utils&quot;))
+    from load_data import init_dataset
+    DATASET_DIR = init_dataset(name=&quot;ASAP&quot;)
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<script type="application/vnd.jupyter.widget-view+json">{"model_id": "f9cac6475ff34d63aa59225445785607", "version_major": 2, "version_minor": 0}</script></div>
+</div>
+<section id="The-ASAP-Dataset-with-note-alignments">
+<h3>The ASAP Dataset with note alignments<a class="headerlink" href="#The-ASAP-Dataset-with-note-alignments" title="Link to this heading">¶</a></h3>
+<p>ASAP is a dataset of aligned musical scores (both MIDI and MusicXML) and performances (audio and MIDI), all with downbeat, beat, <strong>note</strong>, time signature, and key signature annotations. ASAP is the the largest available fully note-aligned dataset to date (09/11/2022).</p>
+<p><strong>Content</strong> ASAP contains <strong>236 distinct musical scores</strong> and <strong>1067 performances</strong> of Western classical piano music from 15 different composers (see Table below for a breakdown).</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Composer</p></th>
+<th class="head"><p>MIDI Performance</p></th>
+<th class="head"><p>Audio Performance</p></th>
+<th class="head"><p>MIDI/XML Score</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Bach</p></td>
+<td><p>169</p></td>
+<td><p>152</p></td>
+<td><p>59</p></td>
+</tr>
+<tr class="row-odd"><td><p>Balakirev</p></td>
+<td><p>10</p></td>
+<td><p>3</p></td>
+<td><p>1</p></td>
+</tr>
+<tr class="row-even"><td><p>Beethoven</p></td>
+<td><p>271</p></td>
+<td><p>120</p></td>
+<td><p>57</p></td>
+</tr>
+<tr class="row-odd"><td><p>Brahms</p></td>
+<td><p>1</p></td>
+<td><p>0</p></td>
+<td><p>1</p></td>
+</tr>
+<tr class="row-even"><td><p>Chopin</p></td>
+<td><p>289</p></td>
+<td><p>108</p></td>
+<td><p>34</p></td>
+</tr>
+<tr class="row-odd"><td><p>Debussy</p></td>
+<td><p>3</p></td>
+<td><p>3</p></td>
+<td><p>2</p></td>
+</tr>
+<tr class="row-even"><td><p>Glinka</p></td>
+<td><p>2</p></td>
+<td><p>2</p></td>
+<td><p>1</p></td>
+</tr>
+<tr class="row-odd"><td><p>Haydn</p></td>
+<td><p>44</p></td>
+<td><p>16</p></td>
+<td><p>11</p></td>
+</tr>
+<tr class="row-even"><td><p>Liszt</p></td>
+<td><p>121</p></td>
+<td><p>48</p></td>
+<td><p>16</p></td>
+</tr>
+<tr class="row-odd"><td><p>Mozart</p></td>
+<td><p>16</p></td>
+<td><p>5</p></td>
+<td><p>6</p></td>
+</tr>
+<tr class="row-even"><td><p>Prokofiev</p></td>
+<td><p>8</p></td>
+<td><p>0</p></td>
+<td><p>1</p></td>
+</tr>
+<tr class="row-odd"><td><p>Rachmaninoff</p></td>
+<td><p>8</p></td>
+<td><p>4</p></td>
+<td><p>4</p></td>
+</tr>
+<tr class="row-even"><td><p>Ravel</p></td>
+<td><p>22</p></td>
+<td><p>0</p></td>
+<td><p>4</p></td>
+</tr>
+<tr class="row-odd"><td><p>Schubert</p></td>
+<td><p>62</p></td>
+<td><p>44</p></td>
+<td><p>13</p></td>
+</tr>
+<tr class="row-even"><td><p>Schumann</p></td>
+<td><p>28</p></td>
+<td><p>7</p></td>
+<td><p>10</p></td>
+</tr>
+<tr class="row-odd"><td><p>Scriabin</p></td>
+<td><p>13</p></td>
+<td><p>7</p></td>
+<td><p>2</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Total</strong></p></td>
+<td><p>1067</p></td>
+<td><p>519</p></td>
+<td><p>222</p></td>
+</tr>
+</tbody>
+</table>
+<section id="Accesing-information">
+<h4>Accesing information<a class="headerlink" href="#Accesing-information" title="Link to this heading">¶</a></h4>
+<p>Let’s get all the Bach files for this task. We select the <code class="docutils literal notranslate"><span class="pre">.tsv</span></code> note alignments, the MIDI performance file, the Musicxml Score File and the path for the match file we want to produce.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span># Selecting a subset of files from the dataset (Only Bach Files for this tutorial)
+asap_files = [(os.path.join(root, file),
+               os.path.join(os.path.dirname(root), os.path.basename(root).split(&quot;_&quot;)[0]+&quot;.mid&quot;),
+               os.path.join(os.path.dirname(root), &quot;xml_score.musicxml&quot;),
+               #os.path.join(root, os.path.splitext(file)[0]+&quot;.match&quot;))
+               os.path.join(os.path.dirname(root), os.path.basename(root).split(&quot;_&quot;)[0]+&quot;.match&quot;))
+              for root, dirs, files in os.walk(os.path.join(DATASET_DIR, &quot;Bach&quot;))
+              for file in files if file.endswith(&quot;note_alignment.tsv&quot;)]
+</pre></div>
+</div>
+</div>
+<p>For the Bach files in the ASAP dataset we will split on two subsets training and testing. For testing, we choose Bach’s Italian Concerto performances, and for training, we use Bach’s Preludes and Fugues we find in ASAP.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>_, _, score_files, match_files = zip(*asap_files)
+asap_train = [t for t in zip(score_files, match_files) if &quot;Italian_concerto&quot; not in t[0]]
+asap_test = [t for t in zip(score_files, match_files) if &quot;Italian_concerto&quot; in t[0]]
+</pre></div>
+</div>
+</div>
+<p>To train a pitch spelling model we will need some global description of pitches to perform tokenization.</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p><strong>Pitch Class</strong></p></th>
+<th class="head"><p><strong>Tonal Pitch Class</strong></p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>11</p></td>
+<td><p>B♮, C♭, A𝄪</p></td>
+</tr>
+<tr class="row-odd"><td><p>10</p></td>
+<td><p>B♭, A♯, C♭</p></td>
+</tr>
+<tr class="row-even"><td><p>9</p></td>
+<td><p>A♮, G♭, B𝄫</p></td>
+</tr>
+<tr class="row-odd"><td><p>8</p></td>
+<td><p>A♭, G♯</p></td>
+</tr>
+<tr class="row-even"><td><p>7</p></td>
+<td><p>G♮, F♭, A𝄫</p></td>
+</tr>
+<tr class="row-odd"><td><p>6</p></td>
+<td><p>F♯, G♭, E𝄪</p></td>
+</tr>
+<tr class="row-even"><td><p>5</p></td>
+<td><p>F♮, E♯, G𝄫</p></td>
+</tr>
+<tr class="row-odd"><td><p>4</p></td>
+<td><p>E♮, F♭, D𝄪</p></td>
+</tr>
+<tr class="row-even"><td><p>3</p></td>
+<td><p>D♯, E♭, F𝄫</p></td>
+</tr>
+<tr class="row-odd"><td><p>2</p></td>
+<td><p>D♮, C𝄪, E𝄫</p></td>
+</tr>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>C♯, D♭, B𝄪</p></td>
+</tr>
+<tr class="row-odd"><td><p>0</p></td>
+<td><p>C♮, B♯, D𝄫</p></td>
+</tr>
+</tbody>
+</table>
+<p>Given this table we may characterize a note by a triplet:</p>
+<div class="math notranslate nohighlight">
+\[note_x = (\text{Name}_x, \; \text{Accidental}_x, \; \text{Octave}_x)\]</div>
+<p>So then a for example A4 = 440Hz would be: - Name = A , - Accidental = 0 or natural and - Octave 4</p>
+<p>all together <code class="docutils literal notranslate"><span class="pre">(A,</span> <span class="pre">0,</span> <span class="pre">4)</span></code>.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>PITCHES = {
+    0: [&quot;C&quot;, &quot;B#&quot;, &quot;D--&quot;],
+    1: [&quot;C#&quot;, &quot;B##&quot;, &quot;D-&quot;],
+    2: [&quot;D&quot;, &quot;C##&quot;, &quot;E--&quot;],
+    3: [&quot;D#&quot;, &quot;E-&quot;, &quot;F--&quot;],
+    4: [&quot;E&quot;, &quot;D##&quot;, &quot;F-&quot;],
+    5: [&quot;F&quot;, &quot;E#&quot;, &quot;G--&quot;],
+    6: [&quot;F#&quot;, &quot;E##&quot;, &quot;G-&quot;],
+    7: [&quot;G&quot;, &quot;F##&quot;, &quot;A--&quot;],
+    8: [&quot;G#&quot;, &quot;A-&quot;],
+    9: [&quot;A&quot;, &quot;G##&quot;, &quot;B--&quot;],
+    10: [&quot;A#&quot;, &quot;B-&quot;, &quot;C--&quot;],
+    11: [&quot;B&quot;, &quot;A##&quot;, &quot;C-&quot;],
+}
+
+accepted_pitches = [ii for i in PITCHES.values() for ii in i]
+pitch_to_ix = {p: accepted_pitches.index(p) for p in accepted_pitches}
+<br/></pre></div>
+</div>
+</div>
+<p>To create Pitch Spelling data from the <em>ASAP Dataset</em> we will use the matched files of MIDI performances note aligned to scores that we produced earlier. We use the performance notes that have a match in the score that bear the label <em>match</em>. Then we obtain pairs of notes of type <em>(performance note, score note)</em>. The encoded performance notes have pitch information in MIDI pitch, meaning integer values from 0-127 (no-pitch spelling) and duration in seconds. The score notes have pitch spelling
+available in the form of the aforementioned triplet <code class="docutils literal notranslate"><span class="pre">(note_name,</span> <span class="pre">accidental,</span> <span class="pre">octave)</span></code>.</p>
+<p>Therefore, the steps we need to follow is to expand the performance notes to features and to tokenize the score’s pitch spelling.</p>
+<p>For the performance notes we use a 14 length vector that contains: - for the first 12 values a One Hot representation of Pitch Class extracted from the MIDI pitch, followed by - a normalization of midi pitch between 0 and 1, and finally - a duration normalized by minute.</p>
+<p>The tokenization of the score notes follows the previous table of the available spellings. Therefore, the pitch spelling task translates to a per note classification task with 35 target classes. Let’s create our features and labels.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><br/><span></span>def tokenize_pitch_spelling(ps_note):
+    # step = {&quot;A&quot;: 0, &quot;B&quot;: 1, &quot;C&quot;: 2, &quot;D&quot;: 3, &quot;E&quot;: 4, &quot;F&quot;: 5, &quot;G&quot;: 6}[]
+    alter = {0:&quot;&quot;, 1:&quot;#&quot;, 2:&quot;##&quot;, -1:&quot;-&quot;, -2:&quot;--&quot;}[ps_note[&quot;alter&quot;].item()]
+    return pitch_to_ix[ps_note[&quot;step&quot;].item()+alter]
+
+def extract_features(perf_note):
+    features = np.zeros((14,))
+    # One hot of Pitch Class for first 12 entries
+    features[int(perf_note[&quot;pitch&quot;].item()%12)] = 1
+    # pitch as float
+    features[12] = perf_note[&quot;pitch&quot;].item()/127
+    # duration normalized per minute
+    features[13] = perf_note[&quot;duration_sec&quot;].item() / 60
+    return features
+
+def create_data(files):
+    data, labels = list(), list()
+    for score_file, match_file in tqdm.tqdm(files):
+            performance, alignment = pt.load_match(match_file)
+            score = pt.load_score(score_file)
+            spart = pt.score.merge_parts(score)
+            spart = pt.score.unfold_part_maximal(spart, ignore_leaps=False)
+            matched_notes = [alignment[idx] for idx, d in enumerate(alignment) if d[&quot;label&quot;] == &quot;match&quot;]
+            pna = performance.note_array()
+            sna = spart.note_array(include_pitch_spelling=True)
+            X, y = np.zeros((len(matched_notes), 14), dtype=float), np.zeros((len(matched_notes), ), dtype=int)
+            for idx, match_note in enumerate(matched_notes):
+                    X[idx] = extract_features(pna[np.where(pna[&quot;id&quot;] == str(match_note[&quot;performance_id&quot;]))])
+                    y[idx] = tokenize_pitch_spelling(sna[np.where(sna[&quot;id&quot;] == match_note[&quot;score_id&quot;])][[&quot;step&quot;, &quot;alter&quot;, &quot;octave&quot;]])
+            data.append(X)
+            labels.append(y)
+    return data, labels
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>X_train, y_train = create_data(asap_train)
+X_test, y_test = create_data(asap_test)
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+100%|█████████████████████████████████████████████████████████████████████████████████████████████████| 166/166 [01:41&lt;00:00,  1.64it/s]
+100%|█████████████████████████████████████████████████████████████████████████████████████████████████████| 3/3 [00:02&lt;00:00,  1.17it/s]
+</pre></div></div>
+</div>
+</section>
+</section>
+</section>
+<section id="Model">
+<h2>Model<a class="headerlink" href="#Model" title="Link to this heading">¶</a></h2>
+<p>In this section we will define a Pitch Spelling model heavily inspired by the PKSpell model by <em>F. Foscarin</em>. It’s a sequential model with an LSTM layer followed by a Linear projection layer. The performance notes are actually sequential since MIDI messages of performances are sequential, counter to the hierarchical representation of the score. Please keep note, that using MIDI performances was not implemented in the original PKSpell and it is only possible to be integrated easily into the model
+thanks to the partitura package.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[28]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>class PKSpell(nn.Module):
+    &quot;&quot;&quot;Models that decouples key signature estimation from pitch spelling by adding a second RNN.
+    This model reached state of the art performances for pitch spelling.
+    &quot;&quot;&quot;
+
+    def __init__(
+            self,
+            input_dim=14,
+            hidden_dim=100,
+            pitch_to_ix=pitch_to_ix,
+            hidden_dim2=24,
+            rnn_depth=1,
+            dropout=0.1,
+            bidirectional=True
+    ):
+            super(PKSpell, self).__init__()
+            self.dropout = nn.Dropout(dropout)
+            self.n_out_pitch = len(pitch_to_ix)
+            self.hidden_dim = hidden_dim
+            self.hidden_dim2 = hidden_dim2
+
+            # RNN layer.
+            self.rnn = nn.LSTM(
+                    input_size=input_dim,
+                    hidden_size=hidden_dim // 2 if bidirectional else hidden_dim,
+                    bidirectional=bidirectional,
+                    num_layers=rnn_depth,
+            )
+            # Output layers.
+            self.top_layer_pitch = nn.Linear(hidden_dim, self.n_out_pitch)
+            # Loss function that we will use during training.
+            self.loss_pitch = nn.CrossEntropyLoss()
+
+    def compute_outputs(self, sentences, sentences_len):
+            rnn_out, _ = self.rnn(sentences)
+            rnn_out = self.dropout(rnn_out)
+            out_pitch = self.top_layer_pitch(rnn_out)
+            return out_pitch
+
+    def forward(self, sentences, pitches, sentences_len):
+            # First computes the predictions, and then the loss function.
+
+            # Compute the outputs. The shape is (max_len, n_sentences, n_labels).
+            scores_pitch = self.compute_outputs(sentences, sentences_len)
+
+            # Flatten the outputs and the gold-standard labels, to compute the loss.
+            # The input to this loss needs to be one 2-dimensional and one 1-dimensional tensor.
+            scores_pitch = scores_pitch.view(-1, self.n_out_pitch)
+            loss = self.loss_pitch(scores_pitch, pitches)
+            acc = (scores_pitch.argmax(dim=-1) == pitches).float().mean()
+            return loss, acc
+
+    def predict(self, ppart):
+            # Compute the outputs from the linear units.
+            pna = ppart.note_array()
+            features = np.zeros((len(pna),14))
+            features[np.arange(len(pna)), np.remainder(pna[&quot;pitch&quot;], 12)] = 1
+            features[:, 12] = pna[&quot;pitch&quot;]/127
+            features[:, 13] = pna[&quot;duration_sec&quot;] / 60
+            scores_pitch = self.compute_outputs(torch.tensor([features]).float(), [len(features)])
+            # Select the top-scoring labels.
+            predicted_pitch = scores_pitch.argmax(dim=2).squeeze()
+            spelling_array = [(accepted_pitches[pp][0], {&quot;&quot;:0, &quot;#&quot;:1, &quot;##&quot;:2, &quot;-&quot;:-1, &quot;--&quot;:-2}[accepted_pitches[pp][1:]], int(pna[i][&quot;pitch&quot;].item()/12)-1)for i, pp in enumerate(predicted_pitch)]
+            out = np.array(spelling_array, dtype=[(&#39;step&#39;, &#39;&lt;U1&#39;), (&#39;alter&#39;, &#39;&lt;i8&#39;), (&#39;octave&#39;, &#39;&lt;i8&#39;)])
+            return out
+<br/></pre></div>
+</div>
+</div>
+<p>We will also introduce some Pytorch and Pytorch-Lightning wrappers for the Dataset and the Model.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[29]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>class PSDataset(Dataset):
+    def __init__(self, x, y):
+            super(PSDataset, self).__init__()
+            self.x = x
+            self.y = y
+    def __getitem__(self, idx):
+            return torch.tensor(self.x[idx]), torch.tensor(self.y[idx]).type(torch.LongTensor)
+    def __len__(self):
+            return len(self.x)
+
+def collate_ps(data):
+    def merge(sequences):
+            lengths = [len(seq) for seq in sequences]
+            padded_seqs = torch.zeros(len(sequences), max(lengths)).long()
+            for i, seq in enumerate(sequences):
+                    end = lengths[i]
+                    padded_seqs[i, :end] = seq[:end]
+            return sequences, lengths
+
+    # sort a list by sequence length (descending order) to use pack_padded_sequence
+    data.sort(key=lambda x: len(x[0]), reverse=True)
+
+    # seperate source and target sequences
+    src_seqs, trg_seqs = zip(*data)
+
+    # merge sequences (from tuple of 1D tensor to 2D tensor)
+    # src_seqs, src_lengths = merge(src_seqs)
+    # trg_seqs, trg_lengths = merge(trg_seqs)
+    src_lengths = [len(seq) for seq in src_seqs]
+
+    return src_seqs[0].float(), src_lengths, trg_seqs[0]
+
+class PKSpellPL(pl.LightningModule):
+    def __init__(self):
+            super(PKSpellPL, self).__init__()
+            self.module = PKSpell()
+    def training_step(self, batch, batch_idx):
+            src_seqs, src_lengths, trg_seqs = batch
+            loss, acc = self.module(src_seqs, trg_seqs, src_lengths)
+            self.log(&quot;train_loss&quot;, loss.item(), on_epoch=True, on_step=True, prog_bar=True)
+            self.log(&quot;train_acc&quot;, acc.item(), on_epoch=True, on_step=True, prog_bar=True)
+            return loss
+    def validation_step(self, batch, batch_idx):
+            src_seqs, src_lengths, trg_seqs = batch
+            loss, acc = self.module(src_seqs, trg_seqs, src_lengths)
+            self.log(&quot;val_loss&quot;, loss.item(), on_epoch=True, prog_bar=True)
+            self.log(&quot;val_acc&quot;, acc.item(), on_epoch=True, on_step=True, prog_bar=True)
+            return loss
+
+    def configure_optimizers(self):
+            optimizer = torch.optim.Adam(self.parameters(), lr=0.001, weight_decay=5e-4)
+            return {
+                    &quot;optimizer&quot;: optimizer,
+            }
+
+def eval_matched(score_file, alignment, performance):
+    # Load the score and Unfold any repetitions.
+    score = pt.score.unfold_part_maximal(pt.score.merge_parts(pt.load_score(score_file)), ignore_leaps=False)
+    sna = score.note_array(include_pitch_spelling=True)
+    matched_notes = [alignment[idx] for idx, d in enumerate(alignment) if d[&quot;label&quot;] == &quot;match&quot;]
+    score_idxs = list()
+    matched= np.zeros((len(performance.note_array()), ))
+    for i, perf_note in enumerate(performance.note_array()):
+            for match_note in matched_notes:
+                    if match_note[&quot;performance_id&quot;] == perf_note[&quot;id&quot;]:
+                            score_idxs.append(np.where(sna[&quot;id&quot;] == match_note[&quot;score_id&quot;])[0].item())
+                            matched[i] = 1
+                            break
+    score_idxs = np.array(score_idxs)
+    true_spelling = sna[score_idxs][[&quot;step&quot;, &quot;alter&quot;, &quot;octave&quot;]]
+    return true_spelling, matched
+</pre></div>
+</div>
+</div>
+</section>
+<section id="Train-the-PKSpell-model">
+<h2>Train the PKSpell model<a class="headerlink" href="#Train-the-PKSpell-model" title="Link to this heading">¶</a></h2>
+<p>For training we use Pytorch Lightning Trainer witch includes a training progress visualization and logging of the metrics (Train Loss, Train Accuracy, Validation Loss, and Validation Accuracy).</p>
+<p>For this tutorial we keep the training and the model simple which only trainable with a batch of size 1. For more elaborate implementation, please visit the <a class="reference external" href="https://github.com/fosfrancesco/pkspell">original PKSpell repo</a>.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[30]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>model = PKSpellPL()
+train_dataloader = DataLoader(PSDataset(X_train, y_train), collate_fn=collate_ps, batch_size=1)
+val_dataloader = DataLoader(PSDataset(X_test, y_test), collate_fn=collate_ps, batch_size=1)
+trainer = pl.Trainer(max_epochs=5)
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+GPU available: True (cuda), used: True
+TPU available: False, using: 0 TPU cores
+IPU available: False, using: 0 IPUs
+HPU available: False, using: 0 HPUs
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[31]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>trainer.fit(model, train_dataloaders=train_dataloader, val_dataloaders=val_dataloader)
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+
+  | Name   | Type    | Params
+-----------------------------------
+0 | module | PKSpell | 29.9 K
+-----------------------------------
+29.9 K    Trainable params
+0         Non-trainable params
+29.9 K    Total params
+0.120     Total estimated model params size (MB)
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<script type="application/vnd.jupyter.widget-view+json">{"model_id": "", "version_major": 2, "version_minor": 0}</script></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<script type="application/vnd.jupyter.widget-view+json">{"model_id": "878f1d27e7d64c8c8a9144a6ed92c43c", "version_major": 2, "version_minor": 0}</script></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<script type="application/vnd.jupyter.widget-view+json">{"model_id": "", "version_major": 2, "version_minor": 0}</script></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<script type="application/vnd.jupyter.widget-view+json">{"model_id": "", "version_major": 2, "version_minor": 0}</script></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<script type="application/vnd.jupyter.widget-view+json">{"model_id": "", "version_major": 2, "version_minor": 0}</script></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<script type="application/vnd.jupyter.widget-view+json">{"model_id": "", "version_major": 2, "version_minor": 0}</script></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<script type="application/vnd.jupyter.widget-view+json">{"model_id": "", "version_major": 2, "version_minor": 0}</script></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+`Trainer.fit` stopped: `max_epochs=5` reached.
+</pre></div></div>
+</div>
+</section>
+<section id="Using-the-Model-for-prediction.">
+<h2>Using the Model for prediction.<a class="headerlink" href="#Using-the-Model-for-prediction." title="Link to this heading">¶</a></h2>
+<p>Let’s see how we can use our trained PKSpell Model for prediction.</p>
+<p>For prediction we only need to provide a midi file and call our <code class="docutils literal notranslate"><span class="pre">model.predict</span></code> function.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[32]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span># You can input the path to your own MIDI file
+MIDI_FILE = asap_files[0][1]
+# Load the MIDI File to the performance Object using Partitura
+performance = pt.load_performance_midi(MIDI_FILE)
+# Remove the module from Lightning to produce single file results.
+with torch.no_grad():
+    pk_spelling = model.module.predict(performance)
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[33]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>df = pd.DataFrame(pk_spelling)
+df.head()
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[33]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>step</th>
+      <th>alter</th>
+      <th>octave</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>C</td>
+      <td>0</td>
+      <td>4</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>D</td>
+      <td>0</td>
+      <td>4</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>E</td>
+      <td>0</td>
+      <td>4</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>F</td>
+      <td>0</td>
+      <td>4</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>G</td>
+      <td>0</td>
+      <td>4</td>
+    </tr>
+  </tbody>
+</table>
+</div></div>
+</div>
+<p>In partitura is easy to estimate spelling using the build-in method (PS13 algorithm)</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[34]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>partitura_spelling = pt.musicanalysis.estimate_spelling(performance)
+df = pd.DataFrame(partitura_spelling)
+df.head()
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[34]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>step</th>
+      <th>alter</th>
+      <th>octave</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>C</td>
+      <td>0</td>
+      <td>4</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>D</td>
+      <td>0</td>
+      <td>4</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>E</td>
+      <td>0</td>
+      <td>4</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>F</td>
+      <td>0</td>
+      <td>4</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>G</td>
+      <td>0</td>
+      <td>4</td>
+    </tr>
+  </tbody>
+</table>
+</div></div>
+</div>
+<p>We can use the same pipeline to compare the spelling of our trained PKSpell model to compare it with the Build-In Partitura Spelling estimation and to the ground truth but for this we will use a match file.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[35]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span># Get a score and a match file
+score_file, match_file = asap_test[2]
+# Load the Match file
+performance, alignment = pt.load_match(match_file)
+# Estimate Spelling using the Partitura Music Analysis PS13 algorithm.
+baseline_spelling = pt.musicanalysis.estimate_spelling(performance)
+# Obtain the prediction using PKSpell
+with torch.no_grad():
+    pk_spelling = model.module.predict(performance)
+</pre></div>
+</div>
+</div>
+<p>Obtain the Ground Truth from the score</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[36]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>true_spelling, matched = eval_matched(score_file, alignment, performance)
+pk_spelling = pk_spelling[matched.astype(bool)]
+baseline_spelling = baseline_spelling[matched.astype(bool)]
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[37]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>acc_pk = np.all([pk_spelling[key] == true_spelling[key] for key in pk_spelling.dtype.names], axis=0).astype(float).mean().item()
+acc_ps13 = np.all([baseline_spelling[key] == true_spelling[key] for key in baseline_spelling.dtype.names], axis=0).astype(float).mean().item()
+print(&quot;Accuracy PkSpell: {:.3f} | Accuracy Partitura PS13 {:.3f}&quot;.format(acc_pk, acc_ps13))
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Accuracy PkSpell: 0.989 | Accuracy Partitura PS13 1.000
+</pre></div></div>
+</div>
+<p>In this tutorial, we saw how to train a model for Pitch Spelling. The pitch spelling model achieves comparable accuracy to the Baseline model implemented in partitura. Nevertheless, we only used a small amount of data to train it. Using more data, will improve the performance.</p>
+<p>Remember, with more data comes more spelling power, and with more spelling power comes more responsibility. So, spell carefully.</p>
+<p><a class="reference external" href="https://colab.research.google.com/github/CPJKU/partitura_tutorial/blob/main/notebooks/03_mlflow/pitch_spelling.ipynb"><img alt="Open in Colab" src="%22https://colab.research.google.com/assets/colab-badge.svg%22" /></a></p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>
+</pre></div>
+</div>
+</div>
+</section>
+</section>
+
+
+        </div>
+      </div>
+
+      <div id="side-menu-container">
+
+        <div id="search" role="search">
+        <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+            <input type="text" name="q" placeholder="Search..." />
+            <input type="hidden" name="check_keywords" value="yes" />
+            <input type="hidden" name="area" value="default" />
+        </form>
+</div>
+
+        <div id="side-menu" role="navigation">
+
+          
+  
+    
+  
+  
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../01_introduction/Partitura_tutorial.html">An Introduction to Symbolic Music Processing with Partitura</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../02_alignment/Symbolic_Music_Alignment.html">Symbolic Music Alignment</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Pitch Spelling with Partitura</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../04_generation/Drum_Generation_Transformer.html">Drum Generation Transformer</a></li>
+</ul>
+
+  
+
+
+        </div>
+
+        
+
+      </div>
+
+    </div>
+
+<footer>
+    <div id="footer-info">
+        <ul id="build-details">
+            
+                <li class="footer-element">
+                    
+                        <a href="../../_sources/notebooks/03_mlflow/pitch_spelling.ipynb.txt" rel="nofollow"> source</a>
+                    
+                </li>
+            
+
+            
+
+            
+        </ul>
+
+        
+            <div id="copyright">
+                &copy; 2022, CP JKU
+            </div>
+        
+
+        <div id="credit">
+            created with <a href="http://sphinx-doc.org/">Sphinx</a> and <a href="https://github.com/Autophagy/insegel">Insegel</a>
+
+        </div>
+    </div>
+
+    <a id="menu-toggle" class="fa fa-bars" aria-hidden="true"></a>
+
+    <script type="text/javascript">
+      $("#menu-toggle").click(function() {
+        $("#menu-toggle").toggleClass("toggled");
+        $("#side-menu-container").slideToggle(300);
+      });
+    </script>
+
+</footer> 
+
+</div>
+
+</body>
+</html>

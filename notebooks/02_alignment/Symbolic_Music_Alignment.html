@@ -1,0 +1,1344 @@
+<!DOCTYPE html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#2D2D2D" />
+  
+  <title>Partitura Tutorial :: Symbolic Music Alignment</title>
+  
+
+  <link rel="icon" type="image/png" sizes="32x32" href="../../_static/img/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="../../_static/img/favicon-16x16.png">
+  <link rel="index" title="Index" href="../../genindex.html"/>
+
+  <link rel="stylesheet" href="../../_static/css/insegel.css"/>
+  <link rel="stylesheet" href="../../_static/css/custom.css"/>
+
+  <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+      <script type="text/javascript" src="../../_static/documentation_options.js"></script>
+      <script type="text/javascript" src="../../_static/doctools.js"></script>
+      <script type="text/javascript" src="../../_static/sphinx_highlight.js"></script>
+      <script type="text/javascript" src="../../https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script type="text/javascript" src="../../"></script>
+      <script type="text/javascript" src="../../https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  
+
+  <script src="https://email.tl.fortawesome.com/c/eJxNjUEOgyAQAF8jR7Kw6wIHDh7sP1Cw2mgxgmn6-3JsMqc5zEQfE8dkxOY1KKMUOI3ACFKRJpSW2AAp7ontYIaxI6i7XPJVwyeVfCQ550Os3jLrGSNOLgbdAy6s0PBk2TFNjEbsfq31LB0OnX407pJa5v2faRadwSW63mn5KuLyR9j2tgx3zecanl-55R_-jjPs"></script> 
+</head>
+
+<body>
+  <div id="insegel-container">
+    <header>
+      <div id="logo-container">
+          
+          <h1>Partitura Tutorial</h1>
+          
+      </div>
+      <div id="project-container">
+        
+        <h1>Documentation</h1>
+        
+      </div>
+    </header>
+
+    <div id="content-container">
+
+      <div id="main-content-container">
+        <div id="main-content" role="main">
+          
+  <p><a class="reference external" href="https://colab.research.google.com/github/CPJKU/partitura_tutorial/blob/main/notebooks/02_alignment/Symbolic_Music_Alignment.ipynb"><img alt="Open In Colab" src="https://colab.research.google.com/assets/colab-badge.svg" /></a></p>
+<section id="Symbolic-Music-Alignment">
+<h1>Symbolic Music Alignment<a class="headerlink" href="#Symbolic-Music-Alignment" title="Link to this heading">¶</a></h1>
+<p>Automatic Music Alignment refers to the task of linking or matching two musical signals of the same musical work. This can be, e.g., matching <em>different performances</em> of the same piece, or matching the performance of a piece with its musical score.</p>
+<p>The following figure shows a common music alignment pipeline:</p>
+<p><img alt="alignment_pipeline" class="no-scaled-link" src="../../_images/alignment_pipeline.png" style="width: 600px;" /></p>
+<p>In this part of the tutorial we are going to explore these components in more detail.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>try:
+    import google.colab
+    IN_COLAB = True
+except:
+    IN_COLAB = False
+
+if IN_COLAB:
+    # Issues on Colab with newer versions of MIDO
+    # this install should be removed after the following
+    # pull request is accepted in MIDO
+    # https://github.com/mido/mido/pull/584
+    ! pip install mido==1.2.10
+    # Install partitura
+    ! pip install partitura
+    ! pip install fastdtw
+
+    # To be able to access helper modules in the repo for this tutorial
+    # (not necessary if the jupyter notebook is run locally instead of google colab)
+    !git clone https://github.com/cpjku/vienna4x22.git
+    ! pip install requests
+    import requests
+    # Save datagenerators as file to colab working directory
+    # If you are using GitHub, make sure you get the &quot;Raw&quot; version of the code
+    base = &#39;https://raw.githubusercontent.com/CPJKU/partitura_tutorial/main/notebooks/02_alignment/&#39;
+    for text in [&quot;helper.py&quot;, &quot;slideshow_helper.py&quot;, &quot;alignment.py&quot;]:
+        r = requests.get(base+text)
+        # make sure your filename is the same as how you want to import
+        with open(text, &#39;w&#39;) as f:
+            f.write(r.text)
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>import os, sys
+
+if IN_COLAB:
+    V4X22_DATASET_DIR = &#39;./vienna4x22&#39;
+else:
+    # Path to the Vienna 4x22 dataset
+    sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.getcwd())), &quot;utils&quot;))
+    from load_data import init_dataset
+    V4X22_DATASET_DIR = init_dataset()
+
+MUSICXML_DIR = os.path.join(V4X22_DATASET_DIR, &#39;musicxml&#39;)
+MIDI_DIR = os.path.join(V4X22_DATASET_DIR, &#39;midi&#39;)
+MATCH_DIR = os.path.join(V4X22_DATASET_DIR, &#39;match&#39;)
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<script type="application/vnd.jupyter.widget-view+json">{"model_id": "b702c3e7dc1a4e80b02fa9620252d7a0", "version_major": 2, "version_minor": 0}</script></div>
+</div>
+<section id="1.-Music-Representation">
+<h2>1. Music Representation<a class="headerlink" href="#1.-Music-Representation" title="Link to this heading">¶</a></h2>
+<p>Music representations, since this is a tutorial on symbolic music processing, we will focus on symbolic music representations, such that can be stored in formats such as MIDI, MusicXML or MEI, and that can be generated by editors like MuseScore, Finale, etc.</p>
+<section id="1.1-Audio-vs.-Symbolic-Alignment">
+<h3>1.1 Audio vs. Symbolic Alignment<a class="headerlink" href="#1.1-Audio-vs.-Symbolic-Alignment" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>In <strong>Audio-based alignment</strong>, the alignment itself typically refers to of <em>timestamps</em> (in absolute time in seconds) in one audio recording of a musical work to the corresponding <em>timestamp</em> in another recording. (In audio recordings, identifying individual notes is not a trivial task)</p></li>
+<li><p>In <strong>Symbolic-based alignment</strong>, we can have two types of alignment:</p>
+<ul>
+<li><p><strong>Time-wise alignments</strong>: similar to audio-based alignment, we can map timestamps (in symbolic time units like musical beats or MIDI ticks) from one version of the work to another (e.g., a MIDI performance to a score in MusicXML/MEI/Humdrum format).</p></li>
+<li><p><strong>Note-wise alignment</strong>: We can map individual symbolic music elements (most commonly notes) from one version to another. This is very useful for modeling expressive performance.</p></li>
+</ul>
+</li>
+</ul>
+</section>
+<section id="1.2-Types-of-music-alignment">
+<h3>1.2 Types of music alignment<a class="headerlink" href="#1.2-Types-of-music-alignment" title="Link to this heading">¶</a></h3>
+<p>We can categorize musical alignment in two main dimensions: (representation) modality and time.</p>
+<section id="1.2.1-Representation-modality">
+<h4>1.2.1 Representation modality<a class="headerlink" href="#1.2.1-Representation-modality" title="Link to this heading">¶</a></h4>
+<ul class="simple">
+<li><p><strong>Audio-to-audio alignment</strong>: Alignment of two (audio) recordings. This is probably the most studied type of alignment in the MIR literature.</p></li>
+<li><p><strong>Symbolic-to-audio alignment</strong>: Alignment of symbolically encoded musical events with timestamps in an audio recording.</p></li>
+<li><p><strong>Symbolic-to-symbolic alignment</strong>: Alignment of symbolically encoded musical events in two recordings/documents of the same work.</p></li>
+<li><p><strong>Image-to-audio alignment</strong>: Alignment of spatial positions of (images) of sheet music with timestamps in an audio recording.</p></li>
+<li><p><strong>Lyrics-to-audio alignment</strong>: Alignment of lyrics (text) with timestamps in an audio recording.</p></li>
+</ul>
+</section>
+<section id="1.2.2-Time">
+<h4>1.2.2 Time<a class="headerlink" href="#1.2.2-Time" title="Link to this heading">¶</a></h4>
+<ul class="simple">
+<li><p><strong>Offline</strong>: Alignment of two <em>recordings/documents</em> (i.e., audio recordings, MIDI performances, MusicXML scores, etc.). These recordings/documents can be in any of the modalities described above, the important thing being that the music is occurring in real-time.</p></li>
+<li><p><strong>Online</strong>: Alignment of a live (i.e., real time) performance to the music encoded in a target document (e.g., a pre-annotated audio recording, a symbolic score, etc.). The problem of real time online alignment is known in the MIR literature a <strong>score following</strong>, and can be useful in live interactive settings, such as automatic accompaniment systems</p></li>
+</ul>
+<p>In this tutorial we are going to focus on the case of offline alignment.</p>
+</section>
+</section>
+<section id="1.3-Representing-Alignments">
+<h3>1.3 Representing Alignments<a class="headerlink" href="#1.3-Representing-Alignments" title="Link to this heading">¶</a></h3>
+<section id="1.3.1-The-Match-file-format">
+<h4>1.3.1 The Match file format<a class="headerlink" href="#1.3.1-The-Match-file-format" title="Link to this heading">¶</a></h4>
+<ul class="simple">
+<li><p>Format that extends a MIDI human performance with note-, beat-, and downbeat-level alignments to a corresponding musical score.</p></li>
+<li><p>Enables advanced analyses of the performance that are relevant for various tasks, such as</p>
+<ul>
+<li><p>expressive performance modeling,</p></li>
+<li><p>score following,</p></li>
+<li><p>music transcription</p></li>
+<li><p>performer classification, etc.</p></li>
+</ul>
+</li>
+<li><p>The match file includes a set of score-related descriptors that makes it usable also as a bare-bones score representation.</p></li>
+</ul>
+<p><img alt="matchfile_schema" class="no-scaled-link" src="../../_images/matchfile_schema.png" style="width: 600px;" /></p>
+<p>The documentation of the matchfile format can be found <a class="reference external" href="https://cpjku.github.io/matchfile/">here</a>.</p>
+</section>
+<section id="1.3.2-Loading-Alignments">
+<h4>1.3.2 Loading Alignments<a class="headerlink" href="#1.3.2-Loading-Alignments" title="Link to this heading">¶</a></h4>
+<p>An important use case of partitura is to handle symbolic alignment information</p>
+<p><strong>Note that partitura itself does not contain methods for alignment</strong></p>
+<p>Partitura supports 2 formats for encoding score-to-performance alignments</p>
+<ul class="simple">
+<li><p>Our match file format</p>
+<ul>
+<li><p>Datasets including match files: Vienna4x22, ASAP, Batik (soon!)</p></li>
+</ul>
+</li>
+<li><p>The format introduced by <a class="reference external" href="https://eita-nakamura.github.io/articles/EN_etal_ErrorDetectionAndRealignment_ISMIR2017.pdf">Nakamura et al. (2017).</a></p></li>
+</ul>
+<p>Let’s load an alignment!</p>
+<p>We have two common use cases</p>
+<ul class="simple">
+<li><p>We have both the match file and the symbolic score file (e.g., MusicXML or MEI)</p></li>
+<li><p>We have only the match file (only works for our format!)</p></li>
+</ul>
+<section id="1.3.2.1-Loading-an-alignment-if-we-only-have-a-match-file">
+<h5>1.3.2.1 Loading an alignment if we only have a match file<a class="headerlink" href="#1.3.2.1-Loading-an-alignment-if-we-only-have-a-match-file" title="Link to this heading">¶</a></h5>
+<p>A useful property of match files is that they include information about the <strong>score and the performance</strong>. Therefore, it is possible to create both a <code class="docutils literal notranslate"><span class="pre">Part</span></code> and a <code class="docutils literal notranslate"><span class="pre">PerformedPart</span></code> directly from a match file.</p>
+<ul class="simple">
+<li><p>Match files contain all information included in performances in MIDI files, i.e., a MIDI file could be reconstructed from a match file.</p></li>
+<li><p>Match files include all information information about pitch spelling and score position and duration of the notes in the score, as well as time and key signature information, and can encode some note-level markings, like accents. Nevertheless, it is important to note that the score information included in a match file is not necessarily complete. For example, match files do not generally include dynamics or tempo markings.</p></li>
+</ul>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span># Let&#39;s start by importing some stuff
+import warnings
+warnings.filterwarnings(&quot;ignore&quot;)
+import glob
+import numpy as np
+import matplotlib.pyplot as plt
+import partitura as pt
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span># path to the match
+match_fn = os.path.join(MATCH_DIR, &#39;Chopin_op10_no3_p01.match&#39;)
+
+# loading a match file
+performance, alignment, score = pt.load_match(match_fn, create_score=True)
+</pre></div>
+</div>
+</div>
+</section>
+<section id="1.3.2.2-Loading-an-alignment-if-we-have-both-score-and-match-files">
+<h5>1.3.2.2 Loading an alignment if we have both score and match files<a class="headerlink" href="#1.3.2.2-Loading-an-alignment-if-we-have-both-score-and-match-files" title="Link to this heading">¶</a></h5>
+<p>In many cases, however, we have access to both the score and match files. Using the original score file has a few advantages:</p>
+<ul class="simple">
+<li><p>It ensures that the score information is correct. Generating a <code class="docutils literal notranslate"><span class="pre">Part</span></code> from a match file involves inferring information for non-note elements (e.g., start and end time of the measures, voice information, clefs, staves, etc.).</p></li>
+<li><p>If we want to load several performances of the same piece, we can load the score only once!</p></li>
+</ul>
+<p>This should be the preferred way to get alignment information!</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span># path to the match
+match_fn = os.path.join(MATCH_DIR, &#39;Chopin_op10_no3_p01.match&#39;)
+
+# Path to the MusicXML file
+score_fn = os.path.join(MUSICXML_DIR, &#39;Chopin_op10_no3.musicxml&#39;)
+
+# Load the score into a `Score` object
+score = pt.load_musicxml(score_fn)
+
+# loading a match file
+performance, alignment = pt.load_match(match_fn)
+</pre></div>
+</div>
+</div>
+<p>Score-to-performance alignments are represented by lists of dictionaries, which contain the following keys:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">label</span></code></p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">'match'</span></code>: there is a performed note corresponding to a score note</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'insertion'</span></code>: the performed note does not correspond to any note in the score</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'deletion'</span></code>: there is no performed note corresponding to a note in the score</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'ornament'</span></code>: the performed note corresponds to the performance of an ornament (e.g., a trill). These notes are matched to the main note in the score. Not all alignments (in the datasets that we have) include ornamnets! Otherwise, ornaments are just treated as insertions.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">score_id</span></code>: id of the note in the score (in the <code class="docutils literal notranslate"><span class="pre">Part</span></code> object) (only relevant for matches, deletions and ornaments)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">performance_id</span></code>: Id of the note in the performance (in the <code class="docutils literal notranslate"><span class="pre">PerformedPart</span></code>) (only relevant for matches, insertions and ornaments)</p></li>
+</ul>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>alignment[:10]
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+[{&#39;label&#39;: &#39;match&#39;, &#39;score_id&#39;: &#39;n1&#39;, &#39;performance_id&#39;: &#39;n0&#39;},
+ {&#39;label&#39;: &#39;match&#39;, &#39;score_id&#39;: &#39;n2&#39;, &#39;performance_id&#39;: &#39;n2&#39;},
+ {&#39;label&#39;: &#39;match&#39;, &#39;score_id&#39;: &#39;n3&#39;, &#39;performance_id&#39;: &#39;n3&#39;},
+ {&#39;label&#39;: &#39;match&#39;, &#39;score_id&#39;: &#39;n4&#39;, &#39;performance_id&#39;: &#39;n1&#39;},
+ {&#39;label&#39;: &#39;match&#39;, &#39;score_id&#39;: &#39;n5&#39;, &#39;performance_id&#39;: &#39;n5&#39;},
+ {&#39;label&#39;: &#39;match&#39;, &#39;score_id&#39;: &#39;n6&#39;, &#39;performance_id&#39;: &#39;n4&#39;},
+ {&#39;label&#39;: &#39;match&#39;, &#39;score_id&#39;: &#39;n7&#39;, &#39;performance_id&#39;: &#39;n6&#39;},
+ {&#39;label&#39;: &#39;match&#39;, &#39;score_id&#39;: &#39;n8&#39;, &#39;performance_id&#39;: &#39;n7&#39;},
+ {&#39;label&#39;: &#39;match&#39;, &#39;score_id&#39;: &#39;n9&#39;, &#39;performance_id&#39;: &#39;n8&#39;},
+ {&#39;label&#39;: &#39;match&#39;, &#39;score_id&#39;: &#39;n10&#39;, &#39;performance_id&#39;: &#39;n9&#39;}]
+</pre></div></div>
+</div>
+</section>
+</section>
+<section id="1.3.3-Getting-information-from-the-alignments">
+<h4>1.3.3 Getting information from the alignments<a class="headerlink" href="#1.3.3-Getting-information-from-the-alignments" title="Link to this heading">¶</a></h4>
+<p>Partitura includes a few methods for getting information from the alignments.</p>
+<p>Let’s start by getting the subset of score notes that have a corresponding performed note</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span># note array of the score
+snote_array = score.note_array()
+# note array of the performance
+pnote_array = performance.note_array()
+# indices of the notes that have been matched
+matched_note_idxs = pt.musicanalysis.performance_codec.get_matched_notes(
+    spart_note_array=snote_array,
+    ppart_note_array=pnote_array,
+    alignment=alignment,
+)
+
+# note array of the matched score notes
+matched_snote_array = snote_array[matched_note_idxs[:, 0]]
+# note array of the matched performed notes
+matched_pnote_array = pnote_array[matched_note_idxs[:, 1]]
+</pre></div>
+</div>
+</div>
+</section>
+</section>
+</section>
+<section id="2.-Feature-Representations">
+<h2>2. Feature Representations<a class="headerlink" href="#2.-Feature-Representations" title="Link to this heading">¶</a></h2>
+<p>To make musical data comparable for alignment algorithms, the first step is to extract features that capture relevant aspects while suppressing irrelevant details.</p>
+<p>Let’s make a quick mathematical parenthesis. For algorithmic purposes, it is convenient to represent the music captured by whichever music representation that we working with as <em>sequences of features</em>.</p>
+<p>Let us consider two sequences <span class="math notranslate nohighlight">\(\mathbf{X} = \{\mathbf{x}_1, \dots \mathbf{x}_N\}\)</span> and <span class="math notranslate nohighlight">\(\mathbf{Y} = \{\mathbf{y}_1, \dots, \mathbf{y}_M\}\)</span> for which we want to find an aligment.</p>
+<ul class="simple">
+<li><p>This sequences could be discrete signals, feature sequences, sequences of characters, etc.</p></li>
+<li><p>The elements <span class="math notranslate nohighlight">\(\mathbf{x}_n\)</span>, <span class="math notranslate nohighlight">\(\mathbf{y}_m\)</span> belong to the same <strong>feature space</strong> <span class="math notranslate nohighlight">\(\mathcal{F}\)</span>. For the purposes of this tutorial, let us consider these elements as <span class="math notranslate nohighlight">\(K\)</span>-dimensional real-vectors, i.e., <span class="math notranslate nohighlight">\(\mathbf{x}, \mathbf{y} \in \mathbb{R}^K\)</span> although they can other kind of objects (e.g., characters in an alphabet).</p></li>
+</ul>
+<p>An important aspect of this feature space is that it allows us to use <em>quantitive measures</em> of how similar the elements of sequence <span class="math notranslate nohighlight">\(\mathbf{X}\)</span> are to the elements in sequence <span class="math notranslate nohighlight">\(\mathbf{Y}\)</span>. We will come back to this point in a moment.</p>
+<p>In this tutorial we are going to focus on 2 common features representations:</p>
+<ol class="arabic simple">
+<li><p>Piano Rolls</p></li>
+<li><p>Pitch Class Distributions</p></li>
+</ol>
+<section id="2.1-Piano-Rolls">
+<h3>2.1 Piano Rolls<a class="headerlink" href="#2.1-Piano-Rolls" title="Link to this heading">¶</a></h3>
+<p>A piano roll is a 2D representation of (MIDI) pitch and time. We can extract piano rolls from symbolic music files with Partitura!</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>from helper import (
+        greedy_note_alignment,
+        generate_example_sequences,
+        plot_alignment
+    )
+
+from typing import List
+
+%config InlineBackend.figure_format =&#39;retina&#39;
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+
+</pre></div></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span># Let&#39;s load a score and a performance of the score
+
+# Path to the MusicXML file
+score_fn = os.path.join(MUSICXML_DIR, &#39;Chopin_op10_no3.musicxml&#39;)
+performance_fn = os.path.join(MIDI_DIR, &#39;Chopin_op10_no3_p01.mid&#39;)
+
+score = pt.load_score(score_fn)
+performance = pt.load_performance(performance_fn)
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span># Compute piano roll
+use_piano_range = False
+score_pr = pt.utils.music.compute_pianoroll(
+    note_info=score,
+    # time_unit=&quot;auto&quot;
+    # time_div=&quot;auto&quot;,
+    # onset_only=False,
+    # note_separation=False,
+    # remove_silence=True,
+    piano_range=use_piano_range,
+    # return_idxs=False,
+)
+
+performance_pr = pt.utils.music.compute_pianoroll(
+    note_info=performance,
+    # time_unit=&quot;auto&quot;
+    # time_div=&quot;auto&quot;,
+    # onset_only=False,
+    # note_separation=False,
+    # remove_silence=True,
+    piano_range=use_piano_range,
+    # return_idxs=False,
+)
+</pre></div>
+</div>
+</div>
+<p>Let’s have a look at the output of these functions:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>score_pr
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+&lt;128x332 sparse matrix of type &#39;&lt;class &#39;numpy.intc&#39;&gt;&#39;
+        with 1414 stored elements in Compressed Sparse Column format&gt;
+</pre></div></div>
+</div>
+<p>By default, piano rolls computed with partitura are stored in scipy’s sparse matrices, since most of the elements are 0.</p>
+<p>The first dimension of the array is MIDI pitch (128) and the second dimension are discrete time-steps defined by the <code class="docutils literal notranslate"><span class="pre">time_div</span></code> and <code class="docutils literal notranslate"><span class="pre">time_unit</span></code> arguments of the <code class="docutils literal notranslate"><span class="pre">compute_pianoroll</span></code> function.</p>
+<p>Let’s visualize the piano rolls!</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>%matplotlib inline
+
+fig, axes = plt.subplots(2, figsize=(10, 7))
+axes[0].imshow(
+    score_pr.todense(),
+    aspect = &quot;auto&quot;,
+    origin=&quot;lower&quot;,
+    cmap=&quot;gray&quot;,
+    interpolation=&quot;nearest&quot;,
+)
+axes[1].imshow(
+    performance_pr.todense(),
+    aspect = &quot;auto&quot;,
+    origin=&quot;lower&quot;,
+    cmap=&quot;gray&quot;,
+    interpolation=&quot;nearest&quot;,
+)
+y_label = &quot;Piano key&quot; if use_piano_range else &quot;MIDI pitch&quot;
+axes[0].set_ylabel(y_label)
+axes[1].set_ylabel(y_label)
+axes[0].set_title(&quot;Score&quot;)
+axes[1].set_title(&quot;Performance&quot;)
+axes[1].set_xlabel(&quot;Time&quot;)
+plt.show()
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/notebooks_02_alignment_Symbolic_Music_Alignment_24_0.png" class="no-scaled-link" src="../../_images/notebooks_02_alignment_Symbolic_Music_Alignment_24_0.png" style="width: 850px; height: 623px;" />
+</div>
+</div>
+<p>For more information, see the documentation of <code class="docutils literal notranslate"><span class="pre">`compute_pianoroll</span></code> &lt;<a class="reference external" href="https://partitura.readthedocs.io/en/latest/modules/partitura.utils.html#partitura.utils.compute_pianoroll">https://partitura.readthedocs.io/en/latest/modules/partitura.utils.html#partitura.utils.compute_pianoroll</a>&gt;`__.</p>
+</section>
+<section id="2.2-Pitch-Class-Distributions">
+<h3>2.2 Pitch Class Distributions<a class="headerlink" href="#2.2-Pitch-Class-Distributions" title="Link to this heading">¶</a></h3>
+<p>These features are the symbolic equivalent to <em>chroma</em> features in audio. This representation is basically a piano roll that has been folded into a single octave.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>score_pc_pr = pt.utils.music.compute_pitch_class_pianoroll(
+    score,
+    normalize=True,
+    time_unit=&quot;beat&quot;,
+    time_div=4
+)
+</pre></div>
+</div>
+</div>
+<p>Let’s plot this feature and compare it to a piano roll of the same score!</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>score_pr = pt.utils.music.compute_pianoroll(
+    note_info=score,
+    time_unit=&quot;beat&quot;,
+    time_div=4,
+    piano_range=False
+)
+
+fig, axes = plt.subplots(2, figsize=(10, 5), sharex=True)
+
+axes[0].imshow(score_pc_pr, aspect = &quot;auto&quot;,
+    origin=&quot;lower&quot;,
+    cmap=&quot;gray&quot;,
+    interpolation=&quot;nearest&quot;,)
+axes[0].set_title(&quot;Pitch Class Distribution&quot;)
+axes[0].set_ylabel(&quot;Pitch classes&quot;)
+axes[1].imshow(score_pr.todense(),
+               aspect=&quot;auto&quot;,
+               origin=&quot;lower&quot;,
+               cmap=&quot;gray&quot;,
+               interpolation=&quot;nearest&quot;)
+axes[1].set_title(&quot;Piano roll&quot;)
+axes[1].set_ylabel(&quot;MIDI pitch&quot;)
+
+plt.show()
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/notebooks_02_alignment_Symbolic_Music_Alignment_29_0.png" class="no-scaled-link" src="../../_images/notebooks_02_alignment_Symbolic_Music_Alignment_29_0.png" style="width: 850px; height: 450px;" />
+</div>
+</div>
+</section>
+</section>
+<section id="3.-Alignment-Methods">
+<h2>3. Alignment Methods<a class="headerlink" href="#3.-Alignment-Methods" title="Link to this heading">¶</a></h2>
+<p>We move now to methods for computing the alignment between features from one version of a piece of music to another. Common methods are dynamic programming approaches like dynamic time warping (DTW) and probabilistic approaches like hidden Markov models.</p>
+<section id="3.1-Alignments-with-Dynamic-Time-Warping.">
+<h3>3.1 Alignments with Dynamic Time Warping.<a class="headerlink" href="#3.1-Alignments-with-Dynamic-Time-Warping." title="Link to this heading">¶</a></h3>
+<p>DTW is a dynamic programming algorithm to find the <strong>optimal</strong> alignment between to time-dependent sequences. In a nutshell, the DTW algorithm finds the alignment between two sequence in three steps:</p>
+<ol class="arabic simple">
+<li><p>Compute the pairwise distance between elements in sequence <span class="math notranslate nohighlight">\(\mathbf{X}\)</span> and <span class="math notranslate nohighlight">\(\mathbf{Y}\)</span>.</p></li>
+<li><p>Compute the accumulated cost matrix</p></li>
+<li><p>Find the best alignment by backtracking</p></li>
+</ol>
+<p>We will explore these steps with a simple example.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>from slideshow_helper import dtw_example
+
+dtw_example(interactive=False)
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/notebooks_02_alignment_Symbolic_Music_Alignment_31_0.png" src="../../_images/notebooks_02_alignment_Symbolic_Music_Alignment_31_0.png" />
+</div>
+</div>
+</section>
+<section id="3.2-A-small-DTW-tutorial-(optional)">
+<h3>3.2 A small DTW tutorial (optional)<a class="headerlink" href="#3.2-A-small-DTW-tutorial-(optional)" title="Link to this heading">¶</a></h3>
+<p>If you are interested, the following section explores dynamic time warping in more detail.</p>
+<p>For now, let us generate some test data that we can play with!</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span># This is a helper method to generate sample sequences
+# (see helper.py for documentation)
+
+# lenght of the &quot;reference&quot; sequence
+lenX = 15
+
+# dimensionality of the feature space
+K = 5
+
+# This method generates an example sequence
+X, Y, gr_path = generate_example_sequences(
+    lenX=lenX,
+    centers=3,
+    n_features=K,
+    maxreps=4,
+    minreps=1,
+    noise_scale=0.1
+)
+
+# Let us plot the data to see how it looks like!
+plot_alignment(X, Y, gr_path)
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/notebooks_02_alignment_Symbolic_Music_Alignment_33_0.png" class="no-scaled-link" src="../../_images/notebooks_02_alignment_Symbolic_Music_Alignment_33_0.png" style="width: 535px; height: 320px;" />
+</div>
+</div>
+<section id="3.2.1.-Comparing-the-similarity-of-the-features:-Local-cost-distance">
+<h4>3.2.1. Comparing the similarity of the features: Local cost distance<a class="headerlink" href="#3.2.1.-Comparing-the-similarity-of-the-features:-Local-cost-distance" title="Link to this heading">¶</a></h4>
+<p>We would like to know how to compare the elements in <span class="math notranslate nohighlight">\(\mathbf{X}\)</span> and <span class="math notranslate nohighlight">\(\mathbf{Y}\)</span>. For this we use a local distance function, which can be any distance(-like) function that is small when <span class="math notranslate nohighlight">\(\mathbf{x}_i\)</span> is <em>similar</em> to <span class="math notranslate nohighlight">\(\mathbf{y}_j\)</span>.</p>
+<p>Which distance to use depends on the problem at hand, although usual starting points are the Euclidean and the Manhattan (<span class="math notranslate nohighlight">\(L_1\)</span>) distances.</p>
+<p>Using this local distance, we can compare the elements in both sequences by comparing the pairwise distance of all elements in <span class="math notranslate nohighlight">\(\mathbf{X}\)</span> and <span class="math notranslate nohighlight">\(\mathbf{Y}\)</span>. This will result in a matrix <span class="math notranslate nohighlight">\(\mathbf{C}\)</span>, where the element <span class="math notranslate nohighlight">\(\mathbf{C}[i,j]\)</span> is given by</p>
+<div class="math notranslate nohighlight">
+\[\mathbf{C}[i,j] = \text{distance}(\mathbf{x}_i, \mathbf{y}_j)\]</div>
+<p>Let’s visualize the pairwise cost matrix.</p>
+<p>(See metrics implemented in <a class="reference external" href="https://docs.scipy.org/doc/scipy/reference/spatial.distance.html">scipy.spatial.distance</a>)</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>from alignment import pairwise_distance_matrix, accumulated_cost_matrix, optimal_warping_path
+# Metrics to consider
+# You can explore more possbilities in
+# https://docs.scipy.org/doc/scipy/reference/spatial.distance.html
+metrics = [
+    &quot;euclidean&quot;,
+    &quot;cosine&quot;,
+    &quot;cityblock&quot;,
+    &quot;canberra&quot;,
+    &quot;correlation&quot;,
+    &quot;chebyshev&quot;
+]
+
+n_rows = int(np.ceil(np.sqrt(len(metrics))))
+n_columns = int(np.ceil(len(metrics) / n_rows))
+fig, axes = plt.subplots(n_rows, n_columns,
+                         sharex=True, sharey=True,
+                         figsize=(10, 5))
+
+for i in range(n_rows):
+
+    for j in range(n_columns):
+
+        mix = i * n_columns + j
+
+        if mix &lt; len(metrics):
+            # Compute pairwise distance matrix
+            C = pairwise_distance_matrix(X, Y, metric=metrics[mix])
+            # Plot matrix
+            axes[i, j].imshow(C, origin=&#39;lower&#39;, aspect=&#39;equal&#39;, cmap=&#39;gray&#39;)
+            axes[i, j].set_xlabel(r&#39;$\mathbf{Y}$&#39;)
+            axes[i, j].set_ylabel(r&#39;$\mathbf{X}$&#39;)
+            axes[i, j].set_title(metrics[mix])
+
+plt.tight_layout()
+plt.show()
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/notebooks_02_alignment_Symbolic_Music_Alignment_36_0.png" class="no-scaled-link" src="../../_images/notebooks_02_alignment_Symbolic_Music_Alignment_36_0.png" style="width: 726px; height: 488px;" />
+</div>
+</div>
+</section>
+<section id="3.2.2.-Computing-the-accumulated-cost">
+<h4>3.2.2. Computing the accumulated cost<a class="headerlink" href="#3.2.2.-Computing-the-accumulated-cost" title="Link to this heading">¶</a></h4>
+<ul class="simple">
+<li><p><strong>Input</strong>: Cost matrix <span class="math notranslate nohighlight">\(\mathbf{C}\)</span> of size <span class="math notranslate nohighlight">\(N \times M\)</span></p></li>
+<li><p><strong>Output</strong>: <span class="math notranslate nohighlight">\(d_{DTW}\)</span></p></li>
+</ul>
+<p><strong>Procedure</strong></p>
+<ol class="arabic simple">
+<li><p>Initialize <span class="math notranslate nohighlight">\(N \times M\)</span> matrix <span class="math notranslate nohighlight">\(D\)</span> (accumulated cost) by</p></li>
+</ol>
+<div class="math notranslate nohighlight">
+\[\mathbf{D}[n, 0] = \sum_{k=0}^{n} \mathbf{C}[k, 0]\]</div>
+<p>for <span class="math notranslate nohighlight">\(n \in [0,N-1]\)</span>, and</p>
+<div class="math notranslate nohighlight">
+\[\mathbf{D}[0, m] = \sum_{k=0}^{m} \mathbf{C}[0, k]\]</div>
+<p>for <span class="math notranslate nohighlight">\(n \in [0, M-1]\)</span></p>
+<ol class="arabic simple" start="2">
+<li><p>Compute in a nested loop for <span class="math notranslate nohighlight">\(n=1,\dots, N-1\)</span> and <span class="math notranslate nohighlight">\(m=1, \dots, M-1\)</span></p></li>
+</ol>
+<div class="math notranslate nohighlight">
+\[\mathbf{D}[n, m] = \mathbf{C}[n, m] + \min \left\{\mathbf{D}[n-1, m-1], \mathbf{D}[n-1, m], \mathbf{D}[n, m-1] \right\}\]</div>
+<ol class="arabic simple" start="3">
+<li><p>The dynamic time warping distance is given by</p></li>
+</ol>
+<div class="math notranslate nohighlight">
+\[d_{DTW}(\mathbf{X}, \mathbf{Y}) = \mathbf{D}[N-1, M-1]\]</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>C = pairwise_distance_matrix(X, Y, metric=&#39;euclidean&#39;)
+D = accumulated_cost_matrix(C)
+
+# Visualize accumulated cost matrix
+plt.imshow(D, origin=&#39;lower&#39;, aspect=&#39;equal&#39;, cmap=&#39;gray&#39;)
+plt.xlabel(r&#39;Sequence $\mathbf{Y}$&#39;)
+plt.ylabel(r&#39;Sequence $\mathbf{X}$&#39;)
+plt.colorbar()
+plt.show()
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/notebooks_02_alignment_Symbolic_Music_Alignment_38_0.png" class="no-scaled-link" src="../../_images/notebooks_02_alignment_Symbolic_Music_Alignment_38_0.png" style="width: 558px; height: 389px;" />
+</div>
+</div>
+</section>
+<section id="3.2.3-Compute-Optimal-Path">
+<h4>3.2.3 Compute Optimal Path<a class="headerlink" href="#3.2.3-Compute-Optimal-Path" title="Link to this heading">¶</a></h4>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[19]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>P = optimal_warping_path(D)
+
+plt.figure(figsize=(9, 3))
+plt.subplot(1, 2, 1)
+plt.imshow(C, cmap=&#39;gray_r&#39;, origin=&#39;lower&#39;, aspect=&#39;equal&#39;)
+plt.plot(P[:, 1], P[:, 0], marker=&#39;o&#39;, color=&#39;r&#39;)
+plt.clim([0, np.max(C)])
+plt.colorbar()
+plt.title(&#39;$C$ with optimal warping path&#39;)
+plt.xlabel(&#39;Sequence Y&#39;)
+plt.ylabel(&#39;Sequence X&#39;)
+
+plt.subplot(1, 2, 2)
+plt.imshow(D, cmap=&#39;gray_r&#39;, origin=&#39;lower&#39;, aspect=&#39;equal&#39;)
+plt.plot(P[:, 1], P[:, 0], marker=&#39;o&#39;, color=&#39;r&#39;)
+plt.plot(gr_path[:, 1], gr_path[:, 0], marker=&#39;d&#39;, color=&#39;purple&#39;, linewidth=1.1)
+plt.clim([0, np.max(D)])
+plt.colorbar()
+plt.title(&#39;$D$ with optimal warping path&#39;)
+plt.xlabel(&#39;Sequence Y&#39;)
+plt.ylabel(&#39;Sequence X&#39;)
+
+plt.tight_layout()
+<br/></pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/notebooks_02_alignment_Symbolic_Music_Alignment_40_0.png" class="no-scaled-link" src="../../_images/notebooks_02_alignment_Symbolic_Music_Alignment_40_0.png" style="width: 881px; height: 290px;" />
+</div>
+</div>
+<p>This naive implementation is very slow! You can only use it for aligning small sequences. For practical stuff, we are going to use the <code class="docutils literal notranslate"><span class="pre">fasdtw</span></code> package. This package contains an efficient implementation of vanilla DTW, as well as a faster approximation, called FastDTW.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[20]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>from alignment import dynamic_time_warping, fast_dynamic_time_warping
+import time
+
+for lenX in [10, 100, 1000]:
+    X, Y, gr_path = generate_example_sequences(
+        lenX=lenX,
+        centers=3,
+        n_features=K,
+        maxreps=2,
+        minreps=2,
+        noise_scale=0.1
+    )
+    st = time.process_time()
+    path_naive, dtwd_naive = dynamic_time_warping(X, Y, return_distance=True)
+    et_naive = time.process_time() - st
+
+    st = time.process_time()
+    path_fdtw, dtwd_fdtw = fast_dynamic_time_warping(X, Y, return_distance=True)
+    et_fdtw = time.process_time() - st
+
+    print(f&quot;Input sizes: X:{X.shape} Y:{Y.shape}&quot;)
+    print(f&quot;\tDTW: {dtwd_naive:.3f} ({et_naive * 1000:.2f} ms)&quot;)
+    print(f&quot;\tFastDTW: {dtwd_fdtw:.3f} ({et_fdtw * 1000:.2f} ms)&quot;)
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Input sizes: X:(10, 5) Y:(20, 5)
+        DTW: 3.725 (0.00 ms)
+        FastDTW: 3.725 (0.00 ms)
+Input sizes: X:(100, 5) Y:(200, 5)
+        DTW: 43.119 (15.62 ms)
+        FastDTW: 51.282 (15.62 ms)
+Input sizes: X:(1000, 5) Y:(2000, 5)
+        DTW: 427.196 (1468.75 ms)
+        FastDTW: 427.196 (187.50 ms)
+</pre></div></div>
+</div>
+</section>
+</section>
+<section id="3.3-Creating-note-level-alignments-from-sequential-alignment-information">
+<h3>3.3 Creating note-level alignments from sequential alignment information<a class="headerlink" href="#3.3-Creating-note-level-alignments-from-sequential-alignment-information" title="Link to this heading">¶</a></h3>
+<p>Dynamic Time Warping and related sequence alignment algorithms return a path between two sequences or time series. Note alignment of two polyphonic parts is categorically different from a time series alignment. To get to a note alignment, we need to figure out what notes are played at a specific time in the piano roll. Sometimes this information might be imprecise so we need to relax the search for notes at some piano roll time to find all relevant notes.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[21]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>from alignment import fast_dynamic_time_warping
+
+score_pr, sidx = pt.utils.music.compute_pianoroll(
+    note_info=score,
+    time_unit=&quot;beat&quot;,
+    time_div=8,
+    return_idxs=True,
+    piano_range=True,
+    binary=True,
+    note_separation=True,
+)
+
+performance_pr, pidx = pt.utils.music.compute_pianoroll(
+    note_info=performance,
+    time_unit=&quot;sec&quot;,
+    time_div=10,
+    return_idxs=True,
+    piano_range=True,
+    binary=True,
+    note_separation=True,
+)
+
+reference_features = score_pr.todense().T
+performance_features = performance_pr.todense().T
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[22]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span># pitch_index, onset, offset, midi_pitch
+sidx[:5]
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[22]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+array([[38,  0,  3, 59],
+       [19,  4, 11, 40],
+       [19,  4,  5, 40],
+       [35,  4,  5, 56],
+       [43,  4,  7, 64]])
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[23]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span># idx correspond to notes in note_array
+snote_array = score.note_array()
+print(snote_array[:5])
+
+# Check that the pitch in the note array corresponds to
+# the fourth column in the indices from the note array
+assert(all(snote_array[&quot;pitch&quot;] == sidx[:, 3]))
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+[(-0.5, 0.5 , -0.5, 0.5 , 0,  8, 59, 1, &#39;n1&#39;, 16)
+ ( 0. , 1.  ,  0. , 1.  , 8, 16, 40, 7, &#39;n4&#39;, 16)
+ ( 0. , 0.25,  0. , 0.25, 8,  4, 40, 4, &#39;n4voice_overlap&#39;, 16)
+ ( 0. , 0.25,  0. , 0.25, 8,  4, 56, 3, &#39;n3&#39;, 16)
+ ( 0. , 0.5 ,  0. , 0.5 , 8,  8, 64, 1, &#39;n2&#39;, 16)]
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[28]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>#.reshape(-1,1)
+performance_features
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[28]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+matrix([[0, 0, 0, ..., 0, 0, 0],
+        [0, 0, 0, ..., 0, 0, 0],
+        [0, 0, 0, ..., 0, 0, 0],
+        ...,
+        [0, 0, 0, ..., 0, 0, 0],
+        [0, 0, 0, ..., 0, 0, 0],
+        [0, 0, 0, ..., 0, 0, 0]], dtype=int32)
+</pre></div></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[29]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span># Dynamic time warping
+dtw_alignment = fast_dynamic_time_warping(
+    X=np.array(reference_features),
+    Y=np.array(performance_features),
+    metric=&quot;cityblock&quot;
+)
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[30]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>note_alignment = greedy_note_alignment(
+    warping_path=dtw_alignment,
+    idx1=sidx,
+    note_array1=score.note_array(),
+    idx2=pidx,
+    note_array2=performance.note_array()
+)
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[31]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>note_alignment[:5]
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[31]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+[{&#39;label&#39;: &#39;match&#39;, &#39;score_id&#39;: &#39;n1&#39;, &#39;performance_id&#39;: &#39;P00_n0&#39;},
+ {&#39;label&#39;: &#39;match&#39;, &#39;score_id&#39;: &#39;n4&#39;, &#39;performance_id&#39;: &#39;P00_n1&#39;},
+ {&#39;label&#39;: &#39;deletion&#39;, &#39;score_id&#39;: &#39;n4voice_overlap&#39;},
+ {&#39;label&#39;: &#39;match&#39;, &#39;score_id&#39;: &#39;n3&#39;, &#39;performance_id&#39;: &#39;P00_n3&#39;},
+ {&#39;label&#39;: &#39;match&#39;, &#39;score_id&#39;: &#39;n2&#39;, &#39;performance_id&#39;: &#39;P00_n2&#39;}]
+</pre></div></div>
+</div>
+</section>
+</section>
+<section id="4.-Comparing-alignments">
+<h2>4. Comparing alignments<a class="headerlink" href="#4.-Comparing-alignments" title="Link to this heading">¶</a></h2>
+<p>Let’s compare different alignment methods</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[32]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span># This file contains the ground truth alignment
+gt_alignment_fn = os.path.join(MATCH_DIR, &quot;Chopin_op10_no3_p01.match&quot;)
+
+# Load the alignment and the performance
+performance, gt_alignment = pt.load_match(
+    gt_alignment_fn,
+    pedal_threshold=127,
+    first_note_at_zero=True
+)
+pnote_array = performance.note_array()
+
+# Load the score
+score_fn = os.path.join(MUSICXML_DIR, &quot;Chopin_op10_no3.musicxml&quot;)
+score = pt.load_score(score_fn)
+snote_array = score.note_array()
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[33]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span># Compute the features
+score_pcr, sidx = pt.utils.music.compute_pitch_class_pianoroll(
+    note_info=score,
+    time_unit=&quot;beat&quot;,
+    time_div=8,
+    return_idxs=True,
+    binary=True,
+    note_separation=True,
+)
+
+performance_pcr, pidx = pt.utils.music.compute_pitch_class_pianoroll(
+    note_info=performance,
+    time_unit=&quot;sec&quot;,
+    time_div=8,
+    return_idxs=True,
+    binary=True,
+    note_separation=True,
+)
+
+reference_features = score_pcr.T
+performance_features = performance_pcr.T
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[34]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span># DTW
+dtw_pcr_warping_path = fast_dynamic_time_warping(
+    X=reference_features,
+    Y=performance_features,
+    metric=&quot;cityblock&quot;,
+)
+
+dtw_pcr_alignment = greedy_note_alignment(
+    warping_path=dtw_pcr_warping_path,
+    idx1=sidx,
+    note_array1=snote_array,
+    idx2=pidx,
+    note_array2=pnote_array,
+)
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[35]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span># Compute the features
+score_pr, sidx = pt.utils.music.compute_pianoroll(
+    note_info=score,
+    time_unit=&quot;beat&quot;,
+    time_div=8,
+    return_idxs=True,
+    piano_range=True,
+    binary=True,
+    note_separation=True,
+)
+
+performance_pr, pidx = pt.utils.music.compute_pianoroll(
+    note_info=performance,
+    time_unit=&quot;sec&quot;,
+    time_div=8,
+    return_idxs=True,
+    piano_range=True,
+    binary=True,
+    note_separation=True,
+)
+
+reference_features = score_pr.toarray().T
+performance_features = performance_pr.toarray().T
+
+# DTW
+dtw_pr_warping_path = fast_dynamic_time_warping(
+    X=reference_features,
+    Y=performance_features,
+    metric=&quot;cityblock&quot;,
+)
+
+dtw_pr_alignment = greedy_note_alignment(
+    warping_path=dtw_pr_warping_path,
+    idx1=sidx,
+    note_array1=snote_array,
+    idx2=pidx,
+    note_array2=pnote_array,
+)
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[36]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span># invent a linear alignment for testing
+from helper import dummy_linear_alignment
+
+# Dummy linear alignment
+linear_warping_path = dummy_linear_alignment(
+    X=reference_features,
+    Y=performance_features,
+)
+
+linear_alignment = greedy_note_alignment(
+    warping_path=linear_warping_path,
+    idx1=sidx,
+    note_array1=snote_array,
+    idx2=pidx,
+    note_array2=pnote_array,
+)
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[37]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>fig, axes = plt.subplots(1, 2, figsize=(10, 5))
+axes[0].plot(linear_warping_path[:, 0], linear_warping_path[:, 1], label=&quot;linear&quot;)
+axes[0].plot(dtw_pr_warping_path[:, 0], dtw_pr_warping_path[:, 1], label=&quot;DTW (piano roll)&quot;)
+axes[0].plot(dtw_pcr_warping_path[:, 0], dtw_pcr_warping_path[:, 1], label=&quot;DTW (pitch class)&quot;)
+axes[1].plot(linear_warping_path[:, 0], linear_warping_path[:, 1], label=&quot;linear&quot;)
+axes[1].plot(dtw_pr_warping_path[:, 0], dtw_pr_warping_path[:, 1], label=&quot;DTW (piano roll)&quot;)
+axes[1].plot(dtw_pcr_warping_path[:, 0], dtw_pcr_warping_path[:, 1], label=&quot;DTW (pitch class)&quot;)
+axes[0].set_xlabel(&#39;Index in score&#39;)
+axes[1].set_xlabel(&#39;Index in score&#39;)
+axes[0].set_ylabel(&#39;Index in performance&#39;)
+axes[1].set_xlim((200, 300))
+axes[1].set_ylim((450, 550))
+plt.legend()
+plt.show()
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/notebooks_02_alignment_Symbolic_Music_Alignment_57_0.png" class="no-scaled-link" src="../../_images/notebooks_02_alignment_Symbolic_Music_Alignment_57_0.png" style="width: 864px; height: 448px;" />
+</div>
+</div>
+<p>To inspect an alignment, we can use <a class="reference external" href="https://sildater.github.io/parangonada/">Parangonada</a>, a tool to compare alignments developed at our institute!</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[38]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>from helper import save_parangonada_csv
+# Export files to Parangonada
+outdir = &quot;parangonada_files&quot;
+if not os.path.exists(outdir):
+    os.mkdir(outdir)
+save_parangonada_csv(
+    alignment=dtw_pr_alignment,
+    performance_data=performance,
+    score_data=score,
+    zalign=linear_alignment,
+    outdir=&quot;parangonada_files&quot;,
+)
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[39]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>from helper import evaluate_alignment_notewise
+
+print(f&quot;Method\tF-score\tPrecision\tRecall&quot;)
+method = &quot;linear&quot;
+
+methods = [
+    (linear_alignment, &quot;linear&quot;),
+    (dtw_pr_alignment, &quot;DTW (piano roll)&quot;),
+    (dtw_pcr_alignment, &quot;DTW (pitch class)&quot;),
+]
+
+for align, method in methods:
+    precision, recall, fscore = evaluate_alignment_notewise(
+        prediction=align,
+        ground_truth=gt_alignment
+    )
+    print(f&quot;{method}\t{fscore:.4f}\t{precision:.4f}\t{recall:.4f}&quot;)
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Method  F-score Precision       Recall
+linear  0.4208  0.3587  0.5088
+DTW (piano roll)        0.9237  0.8898  0.9604
+DTW (pitch class)       0.8729  0.8281  0.9229
+</pre></div></div>
+</div>
+</section>
+<section id="5.-Alignment-Applications">
+<h2>5. Alignment Applications<a class="headerlink" href="#5.-Alignment-Applications" title="Link to this heading">¶</a></h2>
+<p>In this example, we are going to compare tempo curves of different performances of the same piece. Partitura includes a utility function called <code class="docutils literal notranslate"><span class="pre">get_time_maps_from_alignment</span></code>which creates functions (instances of Scipy’s <a class="reference external" href="https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.interp1d.html">interp1d</a>) that map score time to performance time (and the other way around).</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[42]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span># get all match files
+piece = &quot;Chopin_op10_no3&quot;
+matchfiles = glob.glob(os.path.join(MATCH_DIR, f&quot;{piece}_p*.match&quot;))
+matchfiles.sort()
+
+# Load the score
+score_fn = os.path.join(MUSICXML_DIR, f&quot;{piece}.musicxml&quot;)
+score = pt.load_score(score_fn)
+score_part = score[0]
+snote_array = score.note_array()
+
+# Score time from the first to the last onset
+score_time = np.linspace(snote_array[&#39;onset_beat&#39;].min(),
+                         snote_array[&#39;onset_beat&#39;].max(),
+                         100)
+# Include the last offset
+score_time_ending = np.r_[
+    score_time,
+    (snote_array[&#39;onset_beat&#39;] + snote_array[&#39;duration_beat&#39;]).max() # last offset
+]
+
+tempo_curves = np.zeros((len(matchfiles), len(score_time)))
+for i, matchfile in enumerate(matchfiles):
+    # load alignment
+    perf, alignment = pt.load_match(matchfile)
+    # Get score time to performance time map
+    _, stime_to_ptime_map = pt.musicanalysis.performance_codec.get_time_maps_from_alignment(
+        perf, score, alignment)
+    # Compute naïve tempo curve
+    performance_time = stime_to_ptime_map(score_time_ending)
+    tempo_curves[i,:] = 60 * np.diff(score_time_ending) / np.diff(performance_time)
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[43]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>fig, ax = plt.subplots(1, figsize=(15, 8))
+color = plt.cm.rainbow(np.linspace(0, 1, len(tempo_curves)))
+for i, tempo_curve in enumerate(tempo_curves):
+    ax.plot(score_time, tempo_curve,
+            label=f&#39;pianist {i + 1:02d}&#39;, alpha=0.4, c=color[i])
+
+# plot average performance
+ax.plot(score_time, tempo_curves.mean(0), label=&#39;average&#39;, c=&#39;black&#39;, linewidth=2)
+
+# get starting time of each measure in the score
+measure_times = score_part.beat_map([measure.start.t for measure in score_part.iter_all(pt.score.Measure)])
+# do not include pickup measure
+measure_times = measure_times[measure_times &gt;= 0]
+ax.set_title(piece)
+ax.set_xlabel(&#39;Score time (beats)&#39;)
+ax.set_ylabel(&#39;Tempo (bpm)&#39;)
+ax.set_xticks(measure_times)
+plt.legend(frameon=False, bbox_to_anchor = (1.15, .9))
+plt.grid(axis=&#39;x&#39;)
+plt.show()
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/notebooks_02_alignment_Symbolic_Music_Alignment_63_0.png" class="no-scaled-link" src="../../_images/notebooks_02_alignment_Symbolic_Music_Alignment_63_0.png" style="width: 1396px; height: 700px;" />
+</div>
+</div>
+</section>
+<section id="6.-Conclusion">
+<h2>6. Conclusion<a class="headerlink" href="#6.-Conclusion" title="Link to this heading">¶</a></h2>
+<p>In this tutorial we learned how to deal how to load, compute, process, and save alignments with partitura.</p>
+<p><a class="reference external" href="https://colab.research.google.com/github/CPJKU/partitura_tutorial/blob/main/notebooks/02_alignment/Symbolic_Music_Alignment.ipynb"><img alt="Open In Colab" src="https://colab.research.google.com/assets/colab-badge.svg" /></a></p>
+</section>
+</section>
+
+
+        </div>
+      </div>
+
+      <div id="side-menu-container">
+
+        <div id="search" role="search">
+        <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+            <input type="text" name="q" placeholder="Search..." />
+            <input type="hidden" name="check_keywords" value="yes" />
+            <input type="hidden" name="area" value="default" />
+        </form>
+</div>
+
+        <div id="side-menu" role="navigation">
+
+          
+  
+    
+  
+  
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../01_introduction/Partitura_tutorial.html">An Introduction to Symbolic Music Processing with Partitura</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Symbolic Music Alignment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../03_mlflow/pitch_spelling.html">Pitch Spelling with Partitura</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../04_generation/Drum_Generation_Transformer.html">Drum Generation Transformer</a></li>
+</ul>
+
+  
+
+
+        </div>
+
+        
+
+      </div>
+
+    </div>
+
+<footer>
+    <div id="footer-info">
+        <ul id="build-details">
+            
+                <li class="footer-element">
+                    
+                        <a href="../../_sources/notebooks/02_alignment/Symbolic_Music_Alignment.ipynb.txt" rel="nofollow"> source</a>
+                    
+                </li>
+            
+
+            
+
+            
+        </ul>
+
+        
+            <div id="copyright">
+                &copy; 2022, CP JKU
+            </div>
+        
+
+        <div id="credit">
+            created with <a href="http://sphinx-doc.org/">Sphinx</a> and <a href="https://github.com/Autophagy/insegel">Insegel</a>
+
+        </div>
+    </div>
+
+    <a id="menu-toggle" class="fa fa-bars" aria-hidden="true"></a>
+
+    <script type="text/javascript">
+      $("#menu-toggle").click(function() {
+        $("#menu-toggle").toggleClass("toggled");
+        $("#side-menu-container").slideToggle(300);
+      });
+    </script>
+
+</footer> 
+
+</div>
+
+</body>
+</html>

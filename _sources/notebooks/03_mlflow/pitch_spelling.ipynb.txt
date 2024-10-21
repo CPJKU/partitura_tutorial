@@ -1,0 +1,997 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "[![Open in Colab](\"https://colab.research.google.com/assets/colab-badge.svg\")](https://colab.research.google.com/github/CPJKU/partitura_tutorial/blob/main/notebooks/03_mlflow/pitch_spelling.ipynb)\n",
+    "\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Pitch Spelling with Partitura\n",
+    "\n",
+    "Have you always been bad at spelling bee, do you find that spelling notes makes this even worse. Your time of struggling is over.... Today we going to teach a Model to learn how to *pitch* spell for you.\n",
+    "\n",
+    "### Definition\n",
+    "\n",
+    "Spelling a pitch relates to the system of naming notes by letters (A-G) and sharp(#) and flat (♭) signs - and sometimes double sharp and flat signs, resulting in names or 'spellings' like 'A♭', 'D#', 'F♭♭'.\n",
+    "\n",
+    "Translating between frequencies in Hz and such names is non-trivial. You need to consider :\n",
+    "\n",
+    "- The 'concert pitch' you are taking as a reference\n",
+    "- The temperament in which the piece is played\n",
+    "- The overall key that the music would be notated in\n",
+    "- Use of the correct enharmonic equivalents for accidentals (Using the correct enharmonic equivalent, Purpose of double-sharps and double-flats?)\n",
+    "\n",
+    "If translating between, say, MIDI note numbers and 'spelled' names, the first two steps can be skipped.\n",
+    "\n",
+    "Spelled pitch names often have an octave number appended for disambiguation - e.g. 'A♭3', 'D#5'.\n",
+    "\n",
+    "### Some Concrete Examples\n",
+    "\n",
+    "Different pitch spellings of the same content:\n",
+    "\n",
+    "![](https://raw.githubusercontent.com/CPJKU/partitura_tutorial/main/static/chord_spelling.png \"Figure from Automatic Pitch Spelling, E. Cambouropoulos, 2001\")\n",
+    "\n",
+    "How to correctly spell a note may depend on the harmonic progression for example different spelling is appropriate for an *Augmented 6th* chord vs a borrowed dominant chord progression.\n",
+    "\n",
+    "![](https://raw.githubusercontent.com/CPJKU/partitura_tutorial/main/static/augmented_6th_spelling.png \"Example of a Augmented 6th chord.\")\n",
+    "\n",
+    "If music theory is not your cup of tea, do not worry. We will view *Pitch Spelling* as a task from a more engineering perpective.\n",
+    "\n",
+    "\n",
+    "### Some Spelling algorithms\n",
+    "\n",
+    "Partitura contains an implementation for a standard algorithm for Pitch Spelling. The algorithm in question is called ps13 created by Meredith and al.:\n",
+    "\n",
+    "\tThe ps13 pitch spelling algorithm, D Meredith - Journal of New Music Research, 2006\n",
+    "\n",
+    "Some notable algorithms and current SOTA is PKSpell.\n",
+    "\n",
+    "\tPKSpell: Data-driven pitch spelling and key signature estimation\n",
+    "\tF Foscarin, N Audebert, R Fournier-S'Niehotta, 2021\n",
+    "\n",
+    "### Let's Get Started\n",
+    "\n",
+    "In this tutorial we will use the following packages:\n",
+    "- `partitura` The basic I/O for scores, performances and alignments crucial for pitch spelling estimation and evaluation.\n",
+    "- Pytorch, i.e. `torch` Library for ML more on [https://pytorch.org/](https://pytorch.org/)\n",
+    "- `pytorch_lightning` Wrappers for Pytorch for better visualization and encapsulation more on [https://www.pytorchlightning.ai/](https://www.pytorchlightning.ai/)\n",
+    "- `pandas` for reading `.tsv` files\n",
+    "\n",
+    "Let's start by downloading ASAP a dataset containing note alignments of symbolic performances to their respective scores perfect for a Pitch-Spelling evaluation framework."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "try:\n",
+    "    import google.colab\n",
+    "    IN_COLAB = True\n",
+    "except:\n",
+    "    IN_COLAB = False\n",
+    "\n",
+    "if IN_COLAB:\n",
+    "\t# Issues on Colab with newer versions of MIDO\n",
+    "\t# this install should be removed after the following\n",
+    "\t# pull request is accepted in MIDO\n",
+    "\t# https://github.com/mido/mido/pull/584\n",
+    "\t! pip install mido==1.2.10\n",
+    "\t!pip install git+https://github.com/cpjku/partitura.git@develop\n",
+    "\t!pip install pytorch_lightning"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import partitura as pt\n",
+    "import torch\n",
+    "import torch.nn as nn\n",
+    "from torch.nn import functional as F\n",
+    "import numpy as np\n",
+    "import os\n",
+    "import tqdm\n",
+    "import pandas as pd\n",
+    "import pytorch_lightning as pl\n",
+    "from torch.utils.data import DataLoader, Dataset\n",
+    "import warnings\n",
+    "warnings.filterwarnings('ignore')"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "application/vnd.jupyter.widget-view+json": {
+       "model_id": "f9cac6475ff34d63aa59225445785607",
+       "version_major": 2,
+       "version_minor": 0
+      },
+      "text/plain": [
+       "Output()"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "if IN_COLAB:\n",
+    "\tif not os.path.exists(\"./asap-dataset\"):\n",
+    "\t\t!git clone --single-branch https://github.com/CPJKU/asap-dataset.git\n",
+    "\tDATASET_DIR = os.path.normpath(\"./asap-dataset\")\n",
+    "else:\n",
+    "\timport sys, os\n",
+    "\tsys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.getcwd())), \"utils\"))\n",
+    "\tfrom load_data import init_dataset\n",
+    "\tDATASET_DIR = init_dataset(name=\"ASAP\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "#### The ASAP Dataset with note alignments\n",
+    "\n",
+    "\n",
+    "ASAP is a dataset of aligned musical scores (both MIDI and MusicXML) and performances (audio and MIDI), all with downbeat, beat, **note**, time signature, and key signature annotations. ASAP is the the largest available fully note-aligned dataset to date (09/11/2022).\n",
+    "\n",
+    "**Content**\n",
+    "ASAP  contains  **236  distinct  musical  scores**  and  **1067  performances**  of  Western  classical  piano  music from 15 different composers (see Table below for a breakdown).\n",
+    "\n",
+    "\n",
+    "| Composer     \t| MIDI Performance | Audio Performance\t| MIDI/XML Score \t|\n",
+    "|--------------|--------------|----------------------|------------|\n",
+    "| Bach         \t| 169         \t| 152       | 59    \t|\n",
+    "| Balakirev    \t| 10           \t| 3        |1     \t|\n",
+    "| Beethoven    \t| 271          \t| 120       |57   \t  |\n",
+    "| Brahms       \t| 1            \t| 0        |1     \t|\n",
+    "| Chopin       \t| 289         \t| 108       |34    \t|\n",
+    "| Debussy      \t| 3            \t| 3        |2     \t|\n",
+    "| Glinka       \t| 2            \t| 2        |1     \t|\n",
+    "| Haydn        \t| 44           \t| 16        |11    \t|\n",
+    "| Liszt        \t| 121          \t| 48        |16    \t|\n",
+    "| Mozart       \t| 16           \t| 5        |6     \t|\n",
+    "| Prokofiev    \t| 8            \t| 0        |1     \t|\n",
+    "| Rachmaninoff \t| 8           \t| 4        |4     \t|\n",
+    "| Ravel        \t| 22           \t| 0        |4     \t|\n",
+    "| Schubert     \t| 62           \t| 44        |13    \t|\n",
+    "| Schumann     \t| 28           \t| 7        |10    \t|\n",
+    "| Scriabin     \t| 13           \t| 7        |2     \t|\n",
+    "| **Total**     | 1067           |519      | 222    |\n",
+    "\n",
+    "\n",
+    "\n",
+    "\n",
+    "##### Accesing information\n",
+    "\n",
+    "Let's get all the Bach files for this task. We select the `.tsv` note alignments, the MIDI performance file, the Musicxml Score File and the path for the match file we want to produce."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 4,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Selecting a subset of files from the dataset (Only Bach Files for this tutorial)\n",
+    "asap_files = [(os.path.join(root, file), \n",
+    "               os.path.join(os.path.dirname(root), os.path.basename(root).split(\"_\")[0]+\".mid\"), \n",
+    "               os.path.join(os.path.dirname(root), \"xml_score.musicxml\"), \n",
+    "               #os.path.join(root, os.path.splitext(file)[0]+\".match\")) \n",
+    "               os.path.join(os.path.dirname(root), os.path.basename(root).split(\"_\")[0]+\".match\"))\n",
+    "              for root, dirs, files in os.walk(os.path.join(DATASET_DIR, \"Bach\")) \n",
+    "              for file in files if file.endswith(\"note_alignment.tsv\")]"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "For the Bach files in the ASAP dataset we will split on two subsets training and testing. For testing, we choose Bach's Italian Concerto performances, and for training, we use Bach's Preludes and Fugues we find in ASAP."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 5,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "_, _, score_files, match_files = zip(*asap_files)\n",
+    "asap_train = [t for t in zip(score_files, match_files) if \"Italian_concerto\" not in t[0]]\n",
+    "asap_test = [t for t in zip(score_files, match_files) if \"Italian_concerto\" in t[0]]"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "To train a pitch spelling model we will need some global description of pitches to perform tokenization.\n",
+    "\n",
+    "| **Pitch Class** | **Tonal Pitch Class** |\n",
+    "|-----------------|-------------------|\n",
+    "| 11              | B♮,  C♭,  A𝄪     |\n",
+    "| 10              | B♭,  A♯,  C♭      |\n",
+    "| 9               | A♮,  G♭,  B𝄫       |\n",
+    "| 8               | A♭,  G♯           |\n",
+    "| 7               | G♮,  F♭,  A𝄫       |\n",
+    "| 6               | F♯,  G♭,  E𝄪       |\n",
+    "| 5               | F♮,  E♯,  G𝄫       |\n",
+    "| 4               | E♮,  F♭,  D𝄪     |\n",
+    "| 3               | D♯,  E♭,  F𝄫       |\n",
+    "| 2               | D♮,  C𝄪,  E𝄫      |\n",
+    "| 1               | C♯,  D♭,  B𝄪     |\n",
+    "| 0               | C♮,  B♯,  D𝄫       |\n",
+    "\n",
+    "\n",
+    "Given this table we may characterize a note by a triplet:\n",
+    " $$ note_x = (\\text{Name}_x, \\; \\text{Accidental}_x, \\; \\text{Octave}_x) $$\n",
+    "\n",
+    "So then a for example A4 = 440Hz would be:\n",
+    " - Name = A ,\n",
+    " - Accidental = 0 or natural and\n",
+    " - Octave 4\n",
+    "\n",
+    "all together `(A, 0, 4)`."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 6,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "PITCHES = {\n",
+    "\t0: [\"C\", \"B#\", \"D--\"],\n",
+    "\t1: [\"C#\", \"B##\", \"D-\"],\n",
+    "\t2: [\"D\", \"C##\", \"E--\"],\n",
+    "\t3: [\"D#\", \"E-\", \"F--\"],\n",
+    "\t4: [\"E\", \"D##\", \"F-\"],\n",
+    "\t5: [\"F\", \"E#\", \"G--\"],\n",
+    "\t6: [\"F#\", \"E##\", \"G-\"],\n",
+    "\t7: [\"G\", \"F##\", \"A--\"],\n",
+    "\t8: [\"G#\", \"A-\"],\n",
+    "\t9: [\"A\", \"G##\", \"B--\"],\n",
+    "\t10: [\"A#\", \"B-\", \"C--\"],\n",
+    "\t11: [\"B\", \"A##\", \"C-\"],\n",
+    "}\n",
+    "\n",
+    "accepted_pitches = [ii for i in PITCHES.values() for ii in i]\n",
+    "pitch_to_ix = {p: accepted_pitches.index(p) for p in accepted_pitches}\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "To create Pitch Spelling data from the *ASAP Dataset* we will use the matched files of MIDI performances note aligned to scores that we produced earlier. We use the performance notes that have a match in the score that bear the label *match*. Then we obtain pairs of notes of type *(performance note, score note)*.\n",
+    "The encoded performance notes have pitch information in MIDI pitch, meaning integer values from 0-127 (no-pitch spelling) and duration in seconds.\n",
+    "The score notes have pitch spelling available in the form of the aforementioned triplet `(note_name, accidental, octave)`.\n",
+    "\n",
+    "Therefore, the steps we need to follow is to expand the performance notes to features and to tokenize the score's pitch spelling.\n",
+    "\n",
+    "For the performance notes we use a 14 length vector that contains:\n",
+    "- for the first 12 values a One Hot representation of Pitch Class extracted from the MIDI pitch, followed by\n",
+    "- a normalization of midi pitch between 0 and 1, and finally\n",
+    "- a duration normalized by minute.\n",
+    "\n",
+    "The tokenization of the score notes follows the previous table of the available spellings. Therefore, the pitch spelling task translates to a per note classification task with 35 target classes. Let's create our features and labels."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 7,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "\n",
+    "def tokenize_pitch_spelling(ps_note):\n",
+    "\t# step = {\"A\": 0, \"B\": 1, \"C\": 2, \"D\": 3, \"E\": 4, \"F\": 5, \"G\": 6}[]\n",
+    "\talter = {0:\"\", 1:\"#\", 2:\"##\", -1:\"-\", -2:\"--\"}[ps_note[\"alter\"].item()]\n",
+    "\treturn pitch_to_ix[ps_note[\"step\"].item()+alter]\n",
+    "\n",
+    "def extract_features(perf_note):\n",
+    "\tfeatures = np.zeros((14,))\n",
+    "\t# One hot of Pitch Class for first 12 entries\n",
+    "\tfeatures[int(perf_note[\"pitch\"].item()%12)] = 1\n",
+    "\t# pitch as float\n",
+    "\tfeatures[12] = perf_note[\"pitch\"].item()/127\n",
+    "\t# duration normalized per minute\n",
+    "\tfeatures[13] = perf_note[\"duration_sec\"].item() / 60\n",
+    "\treturn features\n",
+    "\n",
+    "def create_data(files):\n",
+    "\tdata, labels = list(), list()\n",
+    "\tfor score_file, match_file in tqdm.tqdm(files):\n",
+    "\t\tperformance, alignment = pt.load_match(match_file)\n",
+    "\t\tscore = pt.load_score(score_file)\n",
+    "\t\tspart = pt.score.merge_parts(score)\n",
+    "\t\tspart = pt.score.unfold_part_maximal(spart, ignore_leaps=False)\n",
+    "\t\tmatched_notes = [alignment[idx] for idx, d in enumerate(alignment) if d[\"label\"] == \"match\"]\n",
+    "\t\tpna = performance.note_array()\n",
+    "\t\tsna = spart.note_array(include_pitch_spelling=True)\n",
+    "\t\tX, y = np.zeros((len(matched_notes), 14), dtype=float), np.zeros((len(matched_notes), ), dtype=int)\n",
+    "\t\tfor idx, match_note in enumerate(matched_notes):\n",
+    "\t\t\tX[idx] = extract_features(pna[np.where(pna[\"id\"] == str(match_note[\"performance_id\"]))])\n",
+    "\t\t\ty[idx] = tokenize_pitch_spelling(sna[np.where(sna[\"id\"] == match_note[\"score_id\"])][[\"step\", \"alter\", \"octave\"]])\n",
+    "\t\tdata.append(X)\n",
+    "\t\tlabels.append(y)\n",
+    "\treturn data, labels"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 8,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "100%|█████████████████████████████████████████████████████████████████████████████████████████████████| 166/166 [01:41<00:00,  1.64it/s]\n",
+      "100%|█████████████████████████████████████████████████████████████████████████████████████████████████████| 3/3 [00:02<00:00,  1.17it/s]\n"
+     ]
+    }
+   ],
+   "source": [
+    "X_train, y_train = create_data(asap_train)\n",
+    "X_test, y_test = create_data(asap_test)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### Model\n",
+    "\n",
+    "In this section we will define a Pitch Spelling model heavily inspired by the PKSpell model by *F. Foscarin*. It's a sequential model with an LSTM layer followed by a Linear projection layer. The performance notes are actually sequential since MIDI messages of performances are sequential, counter to the hierarchical representation of the score. Please keep note, that using MIDI performances was not implemented in the original PKSpell and it is only possible to be integrated easily into the model thanks to the partitura package.\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 28,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "class PKSpell(nn.Module):\n",
+    "\t\"\"\"Models that decouples key signature estimation from pitch spelling by adding a second RNN.\n",
+    "\tThis model reached state of the art performances for pitch spelling.\n",
+    "\t\"\"\"\n",
+    "\n",
+    "\tdef __init__(\n",
+    "\t\tself,\n",
+    "\t\tinput_dim=14,\n",
+    "\t\thidden_dim=100,\n",
+    "\t\tpitch_to_ix=pitch_to_ix,\n",
+    "\t\thidden_dim2=24,\n",
+    "\t\trnn_depth=1,\n",
+    "\t\tdropout=0.1,\n",
+    "\t\tbidirectional=True\n",
+    "\t):\n",
+    "\t\tsuper(PKSpell, self).__init__()\n",
+    "\t\tself.dropout = nn.Dropout(dropout)\n",
+    "\t\tself.n_out_pitch = len(pitch_to_ix)\n",
+    "\t\tself.hidden_dim = hidden_dim\n",
+    "\t\tself.hidden_dim2 = hidden_dim2\n",
+    "\n",
+    "\t\t# RNN layer.\n",
+    "\t\tself.rnn = nn.LSTM(\n",
+    "\t\t\tinput_size=input_dim,\n",
+    "\t\t\thidden_size=hidden_dim // 2 if bidirectional else hidden_dim,\n",
+    "\t\t\tbidirectional=bidirectional,\n",
+    "\t\t\tnum_layers=rnn_depth,\n",
+    "\t\t)\n",
+    "\t\t# Output layers.\n",
+    "\t\tself.top_layer_pitch = nn.Linear(hidden_dim, self.n_out_pitch)\n",
+    "\t\t# Loss function that we will use during training.\n",
+    "\t\tself.loss_pitch = nn.CrossEntropyLoss()\n",
+    "\n",
+    "\tdef compute_outputs(self, sentences, sentences_len):\n",
+    "\t\trnn_out, _ = self.rnn(sentences)\n",
+    "\t\trnn_out = self.dropout(rnn_out)\n",
+    "\t\tout_pitch = self.top_layer_pitch(rnn_out)\n",
+    "\t\treturn out_pitch\n",
+    "\n",
+    "\tdef forward(self, sentences, pitches, sentences_len):\n",
+    "\t\t# First computes the predictions, and then the loss function.\n",
+    "\n",
+    "\t\t# Compute the outputs. The shape is (max_len, n_sentences, n_labels).\n",
+    "\t\tscores_pitch = self.compute_outputs(sentences, sentences_len)\n",
+    "\n",
+    "\t\t# Flatten the outputs and the gold-standard labels, to compute the loss.\n",
+    "\t\t# The input to this loss needs to be one 2-dimensional and one 1-dimensional tensor.\n",
+    "\t\tscores_pitch = scores_pitch.view(-1, self.n_out_pitch)\n",
+    "\t\tloss = self.loss_pitch(scores_pitch, pitches)\n",
+    "\t\tacc = (scores_pitch.argmax(dim=-1) == pitches).float().mean()\n",
+    "\t\treturn loss, acc\n",
+    "\n",
+    "\tdef predict(self, ppart):\n",
+    "\t\t# Compute the outputs from the linear units.\n",
+    "\t\tpna = ppart.note_array()\n",
+    "\t\tfeatures = np.zeros((len(pna),14))\n",
+    "\t\tfeatures[np.arange(len(pna)), np.remainder(pna[\"pitch\"], 12)] = 1\n",
+    "\t\tfeatures[:, 12] = pna[\"pitch\"]/127\n",
+    "\t\tfeatures[:, 13] = pna[\"duration_sec\"] / 60\n",
+    "\t\tscores_pitch = self.compute_outputs(torch.tensor([features]).float(), [len(features)])\n",
+    "\t\t# Select the top-scoring labels.\n",
+    "\t\tpredicted_pitch = scores_pitch.argmax(dim=2).squeeze()\n",
+    "\t\tspelling_array = [(accepted_pitches[pp][0], {\"\":0, \"#\":1, \"##\":2, \"-\":-1, \"--\":-2}[accepted_pitches[pp][1:]], int(pna[i][\"pitch\"].item()/12)-1)for i, pp in enumerate(predicted_pitch)]\n",
+    "\t\tout = np.array(spelling_array, dtype=[('step', '<U1'), ('alter', '<i8'), ('octave', '<i8')])\n",
+    "\t\treturn out\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "We will also introduce some Pytorch and Pytorch-Lightning wrappers for the Dataset and the Model."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 29,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "class PSDataset(Dataset):\n",
+    "\tdef __init__(self, x, y):\n",
+    "\t\tsuper(PSDataset, self).__init__()\n",
+    "\t\tself.x = x\n",
+    "\t\tself.y = y\n",
+    "\tdef __getitem__(self, idx):\n",
+    "\t\treturn torch.tensor(self.x[idx]), torch.tensor(self.y[idx]).type(torch.LongTensor)\n",
+    "\tdef __len__(self):\n",
+    "\t\treturn len(self.x)\n",
+    "\n",
+    "def collate_ps(data):\n",
+    "\tdef merge(sequences):\n",
+    "\t\tlengths = [len(seq) for seq in sequences]\n",
+    "\t\tpadded_seqs = torch.zeros(len(sequences), max(lengths)).long()\n",
+    "\t\tfor i, seq in enumerate(sequences):\n",
+    "\t\t\tend = lengths[i]\n",
+    "\t\t\tpadded_seqs[i, :end] = seq[:end]\n",
+    "\t\treturn sequences, lengths\n",
+    "\n",
+    "\t# sort a list by sequence length (descending order) to use pack_padded_sequence\n",
+    "\tdata.sort(key=lambda x: len(x[0]), reverse=True)\n",
+    "\n",
+    "\t# seperate source and target sequences\n",
+    "\tsrc_seqs, trg_seqs = zip(*data)\n",
+    "\n",
+    "\t# merge sequences (from tuple of 1D tensor to 2D tensor)\n",
+    "\t# src_seqs, src_lengths = merge(src_seqs)\n",
+    "\t# trg_seqs, trg_lengths = merge(trg_seqs)\n",
+    "\tsrc_lengths = [len(seq) for seq in src_seqs]\n",
+    "\n",
+    "\treturn src_seqs[0].float(), src_lengths, trg_seqs[0]\n",
+    "\n",
+    "class PKSpellPL(pl.LightningModule):\n",
+    "\tdef __init__(self):\n",
+    "\t\tsuper(PKSpellPL, self).__init__()\n",
+    "\t\tself.module = PKSpell()\n",
+    "\tdef training_step(self, batch, batch_idx):\n",
+    "\t\tsrc_seqs, src_lengths, trg_seqs = batch\n",
+    "\t\tloss, acc = self.module(src_seqs, trg_seqs, src_lengths)\n",
+    "\t\tself.log(\"train_loss\", loss.item(), on_epoch=True, on_step=True, prog_bar=True)\n",
+    "\t\tself.log(\"train_acc\", acc.item(), on_epoch=True, on_step=True, prog_bar=True)\n",
+    "\t\treturn loss\n",
+    "\tdef validation_step(self, batch, batch_idx):\n",
+    "\t\tsrc_seqs, src_lengths, trg_seqs = batch\n",
+    "\t\tloss, acc = self.module(src_seqs, trg_seqs, src_lengths)\n",
+    "\t\tself.log(\"val_loss\", loss.item(), on_epoch=True, prog_bar=True)\n",
+    "\t\tself.log(\"val_acc\", acc.item(), on_epoch=True, on_step=True, prog_bar=True)\n",
+    "\t\treturn loss\n",
+    "\n",
+    "\tdef configure_optimizers(self):\n",
+    "\t\toptimizer = torch.optim.Adam(self.parameters(), lr=0.001, weight_decay=5e-4)\n",
+    "\t\treturn {\n",
+    "\t\t\t\"optimizer\": optimizer,\n",
+    "\t\t}\n",
+    "\n",
+    "def eval_matched(score_file, alignment, performance):\n",
+    "\t# Load the score and Unfold any repetitions.\n",
+    "\tscore = pt.score.unfold_part_maximal(pt.score.merge_parts(pt.load_score(score_file)), ignore_leaps=False)\n",
+    "\tsna = score.note_array(include_pitch_spelling=True)\n",
+    "\tmatched_notes = [alignment[idx] for idx, d in enumerate(alignment) if d[\"label\"] == \"match\"]\n",
+    "\tscore_idxs = list()\n",
+    "\tmatched= np.zeros((len(performance.note_array()), ))\n",
+    "\tfor i, perf_note in enumerate(performance.note_array()):\n",
+    "\t\tfor match_note in matched_notes:\n",
+    "\t\t\tif match_note[\"performance_id\"] == perf_note[\"id\"]:\n",
+    "\t\t\t\tscore_idxs.append(np.where(sna[\"id\"] == match_note[\"score_id\"])[0].item())\n",
+    "\t\t\t\tmatched[i] = 1\n",
+    "\t\t\t\tbreak\n",
+    "\tscore_idxs = np.array(score_idxs)\n",
+    "\ttrue_spelling = sna[score_idxs][[\"step\", \"alter\", \"octave\"]]\n",
+    "\treturn true_spelling, matched"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### Train the PKSpell model\n",
+    "\n",
+    "For training we use Pytorch Lightning Trainer witch includes a training progress visualization and logging of the metrics (Train Loss, Train Accuracy, Validation Loss, and Validation Accuracy).\n",
+    "\n",
+    "For this tutorial we keep the training and the model simple which only trainable with a batch of size 1.\n",
+    "For more elaborate implementation, please visit the [original PKSpell repo](https://github.com/fosfrancesco/pkspell)."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 30,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "GPU available: True (cuda), used: True\n",
+      "TPU available: False, using: 0 TPU cores\n",
+      "IPU available: False, using: 0 IPUs\n",
+      "HPU available: False, using: 0 HPUs\n"
+     ]
+    }
+   ],
+   "source": [
+    "model = PKSpellPL()\n",
+    "train_dataloader = DataLoader(PSDataset(X_train, y_train), collate_fn=collate_ps, batch_size=1)\n",
+    "val_dataloader = DataLoader(PSDataset(X_test, y_test), collate_fn=collate_ps, batch_size=1)\n",
+    "trainer = pl.Trainer(max_epochs=5)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 31,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]\n",
+      "\n",
+      "  | Name   | Type    | Params\n",
+      "-----------------------------------\n",
+      "0 | module | PKSpell | 29.9 K\n",
+      "-----------------------------------\n",
+      "29.9 K    Trainable params\n",
+      "0         Non-trainable params\n",
+      "29.9 K    Total params\n",
+      "0.120     Total estimated model params size (MB)\n"
+     ]
+    },
+    {
+     "data": {
+      "application/vnd.jupyter.widget-view+json": {
+       "model_id": "",
+       "version_major": 2,
+       "version_minor": 0
+      },
+      "text/plain": [
+       "Sanity Checking: 0it [00:00, ?it/s]"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    },
+    {
+     "data": {
+      "application/vnd.jupyter.widget-view+json": {
+       "model_id": "878f1d27e7d64c8c8a9144a6ed92c43c",
+       "version_major": 2,
+       "version_minor": 0
+      },
+      "text/plain": [
+       "Training: 0it [00:00, ?it/s]"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    },
+    {
+     "data": {
+      "application/vnd.jupyter.widget-view+json": {
+       "model_id": "",
+       "version_major": 2,
+       "version_minor": 0
+      },
+      "text/plain": [
+       "Validation: 0it [00:00, ?it/s]"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    },
+    {
+     "data": {
+      "application/vnd.jupyter.widget-view+json": {
+       "model_id": "",
+       "version_major": 2,
+       "version_minor": 0
+      },
+      "text/plain": [
+       "Validation: 0it [00:00, ?it/s]"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    },
+    {
+     "data": {
+      "application/vnd.jupyter.widget-view+json": {
+       "model_id": "",
+       "version_major": 2,
+       "version_minor": 0
+      },
+      "text/plain": [
+       "Validation: 0it [00:00, ?it/s]"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    },
+    {
+     "data": {
+      "application/vnd.jupyter.widget-view+json": {
+       "model_id": "",
+       "version_major": 2,
+       "version_minor": 0
+      },
+      "text/plain": [
+       "Validation: 0it [00:00, ?it/s]"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    },
+    {
+     "data": {
+      "application/vnd.jupyter.widget-view+json": {
+       "model_id": "",
+       "version_major": 2,
+       "version_minor": 0
+      },
+      "text/plain": [
+       "Validation: 0it [00:00, ?it/s]"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    },
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "`Trainer.fit` stopped: `max_epochs=5` reached.\n"
+     ]
+    }
+   ],
+   "source": [
+    "trainer.fit(model, train_dataloaders=train_dataloader, val_dataloaders=val_dataloader)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### Using the Model for prediction.\n",
+    "\n",
+    "Let's see how we can use our trained PKSpell Model for prediction.\n",
+    "\n",
+    "For prediction we only need to provide a midi file and call our `model.predict` function."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 32,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# You can input the path to your own MIDI file\n",
+    "MIDI_FILE = asap_files[0][1]\n",
+    "# Load the MIDI File to the performance Object using Partitura\n",
+    "performance = pt.load_performance_midi(MIDI_FILE)\n",
+    "# Remove the module from Lightning to produce single file results.\n",
+    "with torch.no_grad():\n",
+    "\tpk_spelling = model.module.predict(performance)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 33,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>step</th>\n",
+       "      <th>alter</th>\n",
+       "      <th>octave</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>C</td>\n",
+       "      <td>0</td>\n",
+       "      <td>4</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>D</td>\n",
+       "      <td>0</td>\n",
+       "      <td>4</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>E</td>\n",
+       "      <td>0</td>\n",
+       "      <td>4</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>F</td>\n",
+       "      <td>0</td>\n",
+       "      <td>4</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>G</td>\n",
+       "      <td>0</td>\n",
+       "      <td>4</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "  step  alter  octave\n",
+       "0    C      0       4\n",
+       "1    D      0       4\n",
+       "2    E      0       4\n",
+       "3    F      0       4\n",
+       "4    G      0       4"
+      ]
+     },
+     "execution_count": 33,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "df = pd.DataFrame(pk_spelling)\n",
+    "df.head()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "In partitura is easy to estimate spelling using the build-in method (PS13 algorithm)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 34,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>step</th>\n",
+       "      <th>alter</th>\n",
+       "      <th>octave</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>C</td>\n",
+       "      <td>0</td>\n",
+       "      <td>4</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>D</td>\n",
+       "      <td>0</td>\n",
+       "      <td>4</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>E</td>\n",
+       "      <td>0</td>\n",
+       "      <td>4</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>F</td>\n",
+       "      <td>0</td>\n",
+       "      <td>4</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>G</td>\n",
+       "      <td>0</td>\n",
+       "      <td>4</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "  step  alter  octave\n",
+       "0    C      0       4\n",
+       "1    D      0       4\n",
+       "2    E      0       4\n",
+       "3    F      0       4\n",
+       "4    G      0       4"
+      ]
+     },
+     "execution_count": 34,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "partitura_spelling = pt.musicanalysis.estimate_spelling(performance)\n",
+    "df = pd.DataFrame(partitura_spelling)\n",
+    "df.head()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "We can use the same pipeline to compare the spelling of our trained PKSpell model to compare it with the Build-In Partitura Spelling estimation and to the ground truth but for this we will use a match file."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 35,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Get a score and a match file\n",
+    "score_file, match_file = asap_test[2]\n",
+    "# Load the Match file\n",
+    "performance, alignment = pt.load_match(match_file)\n",
+    "# Estimate Spelling using the Partitura Music Analysis PS13 algorithm.\n",
+    "baseline_spelling = pt.musicanalysis.estimate_spelling(performance)\n",
+    "# Obtain the prediction using PKSpell\n",
+    "with torch.no_grad():\n",
+    "\tpk_spelling = model.module.predict(performance)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Obtain the Ground Truth from the score"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 36,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "true_spelling, matched = eval_matched(score_file, alignment, performance)\n",
+    "pk_spelling = pk_spelling[matched.astype(bool)]\n",
+    "baseline_spelling = baseline_spelling[matched.astype(bool)]"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 37,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Accuracy PkSpell: 0.989 | Accuracy Partitura PS13 1.000\n"
+     ]
+    }
+   ],
+   "source": [
+    "acc_pk = np.all([pk_spelling[key] == true_spelling[key] for key in pk_spelling.dtype.names], axis=0).astype(float).mean().item()\n",
+    "acc_ps13 = np.all([baseline_spelling[key] == true_spelling[key] for key in baseline_spelling.dtype.names], axis=0).astype(float).mean().item()\n",
+    "print(\"Accuracy PkSpell: {:.3f} | Accuracy Partitura PS13 {:.3f}\".format(acc_pk, acc_ps13))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "In this tutorial, we saw how to train a model for Pitch Spelling. The pitch spelling model achieves comparable accuracy to the Baseline model implemented in partitura. Nevertheless, we only used a small amount of data to train it. Using more data, will improve the performance.\n",
+    "\n",
+    "\n",
+    "Remember, with more data comes more spelling power, and with more spelling power comes more responsibility.\n",
+    "So, spell carefully.\n",
+    "\n",
+    "\n",
+    "\n",
+    "[![Open in Colab](\"https://colab.research.google.com/assets/colab-badge.svg\")](https://colab.research.google.com/github/CPJKU/partitura_tutorial/blob/main/notebooks/03_mlflow/pitch_spelling.ipynb)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.7.10"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 1
+}
